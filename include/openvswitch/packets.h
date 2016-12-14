@@ -38,6 +38,18 @@ struct flow_tnl {
     struct tun_metadata metadata;
 };
 
+
+/* SDN Tunnel information. edited by keyaozhang */
+struct sdn_tnl {
+    ovs_be32 src_ip;
+    ovs_be32 dst_ip;
+    uint8_t tun_type;
+    uint8_t id_length;
+    uint16_t tun_id1;
+    uint16_t tun_id2;
+    uint16_t tun_id3;
+};
+
 /* Some flags are exposed through OpenFlow while others are used only
  * internally. */
 

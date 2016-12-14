@@ -86,6 +86,9 @@
     OFPACT(DEC_MPLS_TTL,    ofpact_null,        ofpact, "dec_mpls_ttl") \
     OFPACT(PUSH_MPLS,       ofpact_push_mpls,   ofpact, "push_mpls")    \
     OFPACT(POP_MPLS,        ofpact_pop_mpls,    ofpact, "pop_mpls")     \
+    /*editd by keyaozhang*/                                             \
+    OFPACT(PUSH_SDN_TUNNEL, ofpact_push_sdn_tunnel, ofpact, "push_sdn_tunnel") \
+    OFPACT(POP_SDN_TUNNEL, ofpact_null, ofpact, "pop_sdn_tunnel") \
                                                                         \
     /* Metadata. */                                                     \
     OFPACT(SET_TUNNEL,      ofpact_tunnel,      ofpact, "set_tunnel")   \
@@ -519,6 +522,28 @@ struct ofpact_pop_mpls {
 struct ofpact_tunnel {
     struct ofpact ofpact;
     uint64_t tun_id;
+};
+
+/* edited by keyaozhang
+ * OFPACT_PUSH_SDN_TUNNEL.
+ *
+ * Used for OFPAT_PUSH_SDN_TUNNEL.*/
+struct ofpact_push_sdn_tunnel{
+    struct ofpact ofpact;
+    ovs_be32 src_ip;
+    ovs_be32 dst_ip;
+    uint8_t id_length;
+    uint16_t tun_id1;
+    uint16_t tun_id2;
+    uint16_t tun_id3;
+};
+
+/* edited by keyaozhang
+ * OFPACT_POP_SDN_TUNNEL.
+ *
+ * Used for OFPAT_POP_SDN_TUNNEL.*/
+struct ofpact_pop_sdn_tunnel{
+    struct ofpact ofpact;
 };
 
 /* OFPACT_SET_QUEUE.

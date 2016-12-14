@@ -2975,6 +2975,90 @@ build_tunnel_send(struct xlate_ctx *ctx, const struct xport *xport,
     return 0;
 }
 
+/*
+static int
+find_sdt_l2_address(const struct flow *flow, ovs_be32 s_ip, ovs_be32 d_ip, struct eth_addr *smac, struct eth_addr *dmac)
+{
+
+	struct in6_addr s_ip6 = in6addr_any;
+	struct in6_addr d_ip6 = in6addr_any;
+	struct in6_addr gw, n_ip6;
+	int err;
+	char out_dev[IFNAMSIZ];
+	char buf_sip6[INET6_ADDRSTRLEN];
+	char buf_dip6[INET6_ADDRSTRLEN];
+	struct xbridge *xbridge;
+	struct xlate_cfg *xcfg;
+	struct xport *out_port = NULL;
+	if (flow->sdtunnel.tun_type == SDN_TNL_TYPE) {
+
+		d_ip6 = in6_addr_mapped_ipv4(d_ip);
+		if (!ovs_router_lookup(&d_ip6, out_dev, &gw)) {
+			xlate_report(ctx, "native tunnel routing failed");
+			return -ENOENT;
+		}
+
+		if (ipv6_addr_is_set(&gw) &&
+				(!IN6_IS_ADDR_V4MAPPED(&gw) || in6_addr_get_mapped_ipv4(&gw))) {
+				n_ip6 = gw;
+		} else {
+			n_ip6 = d_ip6;
+		}
+
+		HMAP_FOR_EACH (xbridge, hmap_node, &xcfg->xbridges) {
+			if (!strncmp(xbridge->name, out_dev, IFNAMSIZ)) {
+				struct xport *port;
+
+				HMAP_FOR_EACH (port, ofp_node, &xbridge->xports) {
+					if (!strncmp(netdev_get_name(port->netdev), out_dev, IFNAMSIZ)) {
+						out_port = port;
+						return 0;
+					}
+				}
+			}
+		}
+
+		xlate_report(ctx, "tunneling to %s via %s",
+						 ipv6_string_mapped(buf_dip6, &d_ip6),
+						 netdev_get_name(out_port->netdev));
+		err = netdev_get_etheraddr(out_port->netdev, &smac);
+		if (err) {
+			xlate_report(ctx, "tunnel output device lacks Ethernet address");
+			return err;
+		}
+
+		d_ip = in6_addr_get_mapped_ipv4(&d_ip6);
+		if (d_ip) {
+			err = netdev_get_in4(out_port->netdev, (struct in_addr *) &s_ip, NULL);
+			if (err) {
+				xlate_report(ctx, "tunnel output device lacks IPv4 address");
+				return err;
+			}
+			in6_addr_set_mapped_ipv4(&s_ip6, s_ip);
+		} else {
+			err = netdev_get_in6(out_port->netdev, &s_ip6);
+			if (err) {
+				xlate_report(ctx, "tunnel output device lacks IPv6 address");
+				return err;
+			}
+		}
+
+		err = tnl_neigh_lookup(out_port->xbridge->name, &d_ip6, &dmac);
+		if (err) {
+			xlate_report(ctx, "neighbor cache miss for %s on bridge %s, "
+						 "sending %s request",
+						 buf_dip6, out_port->xbridge->name, d_ip ? "ARP" : "ND");
+			if (d_ip) {
+				tnl_send_arp_request(ctx, out_dev, smac, s_ip, d_ip);
+			} else {
+				tnl_send_nd_request(ctx, out_dev, smac, &s_ip6, &d_ip6);
+			}
+			return err;
+		}
+}
+*/
+
+
 static void
 xlate_commit_actions(struct xlate_ctx *ctx)
 {
@@ -3962,6 +4046,23 @@ compose_dec_mpls_ttl_action(struct xlate_ctx *ctx)
 }
 
 static void
+compose_push_sdn_tunnel_action(struct xlate_ctx *ctx, struct ofpact_push_sdn_tunnel *sdtunnel)
+{
+    struct flow *flow = &ctx->xin->flow;
+    struct flow_wildcards *wc = ctx->wc;
+
+    memset(&wc->masks.sdtunnel, 0xff, sizeof wc->masks.sdtunnel);
+    flow->sdtunnel.src_ip = sdtunnel->src_ip;
+    flow->sdtunnel.dst_ip = sdtunnel->dst_ip;
+    flow->sdtunnel.tun_type = SDN_TNL_TYPE;
+    flow->sdtunnel.id_length = sdtunnel->id_length;
+    flow->sdtunnel.tun_id1 = sdtunnel->tun_id1;
+    flow->sdtunnel.tun_id2 = sdtunnel->tun_id2;
+    flow->sdtunnel.tun_id3 = sdtunnel->tun_id3;
+    //commit_push_sdn_tunnel_action(flow, &ctx->base_flow, ctx->odp_actions);
+}
+
+static void
 xlate_output_action(struct xlate_ctx *ctx,
                     ofp_port_t port, uint16_t max_len, bool may_packet_in)
 {
@@ -4479,6 +4580,8 @@ freeze_unroll_actions(const struct ofpact *a, const struct ofpact *end,
         case OFPACT_DEBUG_RECIRC:
         case OFPACT_CT:
         case OFPACT_NAT:
+        case OFPACT_PUSH_SDN_TUNNEL:/*edited by keyaozhang*/
+        case OFPACT_POP_SDN_TUNNEL:/*edited by keyaozhang*/
             /* These may not generate PACKET INs. */
             break;
 
@@ -4715,6 +4818,8 @@ recirc_for_mpls(const struct ofpact *a, struct xlate_ctx *ctx)
     case OFPACT_DEC_MPLS_TTL:
     case OFPACT_PUSH_MPLS:
     case OFPACT_POP_MPLS:
+    case OFPACT_PUSH_SDN_TUNNEL:/*edited by keyaozhang*/
+    case OFPACT_POP_SDN_TUNNEL:/*edited by keyaozhang*/
     case OFPACT_POP_QUEUE:
     case OFPACT_FIN_TIMEOUT:
     case OFPACT_RESUBMIT:
@@ -4970,6 +5075,16 @@ do_xlate_actions(const struct ofpact *ofpacts, size_t ofpacts_len,
         case OFPACT_POP_MPLS:
             compose_mpls_pop_action(ctx, ofpact_get_POP_MPLS(a)->ethertype);
             break;
+
+        case OFPACT_PUSH_SDN_TUNNEL:
+        	compose_push_sdn_tunnel_action(ctx, ofpact_get_PUSH_SDN_TUNNEL(a));
+        	break;
+
+        case OFPACT_POP_SDN_TUNNEL:
+        	memset(&flow->sdtunnel, 0x0, sizeof flow->sdtunnel);
+        	memset(&wc->masks.sdtunnel, 0xff, sizeof wc->masks.sdtunnel);
+        	//commit_pop_sdn_tunnel_action(flow, &ctx->base_flow, ctx->odp_actions);
+        	break;
 
         case OFPACT_SET_MPLS_LABEL:
             compose_set_mpls_label_action(

@@ -304,6 +304,14 @@ enum ofp_raw_action_type {
     /* NX1.0+(39): struct nx_action_output_trunc. */
     NXAST_RAW_OUTPUT_TRUNC,
 
+/* edited by keyaozhang, tunnel action: struct ofp_push_sdn_tunnel, struct ofp_pop_sdn_tunnel */
+
+	/* OF1.0+(80): struct ofp_action_push_sdn_tunnel. */
+    OFPAT_RAW_PUSH_SDN_TUNNEL,
+
+    /* OF1.0+(81): void. */
+    OFPAT_RAW_POP_SDN_TUNNEL,
+
 /* ## ------------------ ## */
 /* ## Debugging actions. ## */
 /* ## ------------------ ## */
@@ -414,6 +422,8 @@ ofpact_next_flattened(const struct ofpact *ofpact)
     case OFPACT_PUSH_MPLS:
     case OFPACT_POP_MPLS:
     case OFPACT_SET_TUNNEL:
+    case OFPACT_PUSH_SDN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_SDN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_SET_QUEUE:
     case OFPACT_POP_QUEUE:
     case OFPACT_FIN_TIMEOUT:
@@ -3657,6 +3667,157 @@ format_SET_TUNNEL(const struct ofpact_tunnel *a, struct ds *s)
                   colors.end, a->tun_id);
 }
 
+/* PUSH SDN Tunnel Action. edited by keyaozhang*/
+struct ofp_action_push_sdn_tunnel {
+    ovs_be16 type;                  /* Type. */
+    ovs_be16 len;
+    ovs_be32 src_ip;
+    ovs_be32 dst_ip;
+    uint8_t pad[1];
+    uint8_t id_length;
+    ovs_be16 tun_id1;
+    ovs_be16 tun_id2;
+    ovs_be16 tun_id3;
+    uint8_t pad2[4];
+};
+OFP_ASSERT(sizeof(struct ofp_action_push_sdn_tunnel) == 24);
+
+static enum ofperr
+decode_OFPAT_RAW_PUSH_SDN_TUNNEL(const struct ofp_action_push_sdn_tunnel *oapst,
+								 enum ofp_version ofp_version OVS_UNUSED,
+								 struct ofpbuf *out)
+{
+	struct ofpact_push_sdn_tunnel *tunnel;
+	enum ofperr error;
+
+	tunnel = ofpact_put_PUSH_SDN_TUNNEL(out);
+	tunnel->src_ip = oapst->src_ip;
+	tunnel->dst_ip = oapst->dst_ip;
+	tunnel->id_length = oapst->id_length;
+	tunnel->tun_id1 = ntohs(oapst->tun_id1);
+	tunnel->tun_id2 = ntohs(oapst->tun_id2);
+	tunnel->tun_id3 = ntohs(oapst->tun_id3);
+
+	return 0;
+}
+
+static void
+encode_PUSH_SDN_TUNNEL(const struct ofpact_push_sdn_tunnel *pushtunnel,
+        			   enum ofp_version ofp_version, struct ofpbuf *out)
+{
+	struct ofp_action_push_sdn_tunnel *oapst;
+	oapst = put_OFPAT_PUSH_SDN_TUNNEL(out);
+	oapst->src_ip = pushtunnel->src_ip;
+	oapst->dst_ip = pushtunnel->dst_ip;
+	oapst->id_length = pushtunnel->id_length;
+	oapst->tun_id1 = htons(pushtunnel->tun_id1);
+	oapst->tun_id2 = htons(pushtunnel->tun_id2);
+	oapst->tun_id3 = htons(pushtunnel->tun_id3);
+}
+
+static char * OVS_WARN_UNUSED_RESULT
+parse_PUSH_SDN_TUNNEL(char *arg, struct ofpbuf *ofpacts,
+        			  enum ofputil_protocol *usable_protocols OVS_UNUSED)
+{
+	struct ofpact_push_sdn_tunnel *tunnel;
+	char *inter_ptr = NULL, *outer_ptr = NULL;
+	char *key, *value, *key_value, *ptr = arg;
+	char *error;
+	int count[6] = {0};
+	int i;
+	tunnel = ofpact_put_PUSH_SDN_TUNNEL(ofpacts);
+	while ((key_value = strtok_r(ptr, ";", &outer_ptr)) != NULL)
+	{
+		key = strtok_r(key_value, "=>", &inter_ptr);
+		value = strtok_r(NULL, "=>", &inter_ptr);
+		if (!strcasecmp(key, "src_ip")){
+			error = str_to_ip(value, &tunnel->src_ip);
+			count[0] = 1;
+		}else if (!strcasecmp(key, "dst_ip")){
+			error = str_to_ip(value, &tunnel->dst_ip);
+			count[1] = 1;
+		}else if (!strcasecmp(key, "id_length")){
+			error = str_to_u8(value, "PUSH_SDN_TUNNEL:id_length", &tunnel->id_length);
+			count[2] = 1;
+		}else if (!strcasecmp(key, "tun_id1")){
+			error = str_to_u16(value, "PUSH_SDN_TUNNEL:tun_id1", &tunnel->tun_id1);
+			count[3] = 1;
+		}else if (!strcasecmp(key, "tun_id2")){
+			error = str_to_u16(value, "PUSH_SDN_TUNNEL:tun_id2", &tunnel->tun_id2);
+			count[4] = 1;
+		}else if (!strcasecmp(key, "tun_id3")){
+			error = str_to_u16(value, "PUSH_SDN_TUNNEL:tun_id3", &tunnel->tun_id3);
+			count[5] = 1;
+		}else
+			error = xasprintf("unknown PUSH_SDN_TUNNEL keyword %s", key);
+		if (error)
+			return error;
+		ptr = NULL;
+	}
+	for (i = 0; i < 6; i++)
+	{
+		if (count[i] == 0){
+			switch (i){
+			case 0:
+				return xasprintf("invalid PUSH_SDN_TUNNEL action: lack of 'src_ip'");
+			case 1:
+				return xasprintf("invalid PUSH_SDN_TUNNEL action: lack of 'dst_ip'");
+			case 2:
+				return xasprintf("invalid PUSH_SDN_TUNNEL action: lack of 'id_length'");
+			case 3:
+				return xasprintf("invalid PUSH_SDN_TUNNEL action: lack of 'tun_id1'");
+			case 4:
+				return xasprintf("invalid PUSH_SDN_TUNNEL action: lack of 'tun_id2'");
+			case 5:
+				return xasprintf("invalid PUSH_SDN_TUNNEL action: lack of 'tun_id3'");
+			default:
+				return xasprintf("invalid PUSH_SDN_TUNNEL action: unknown error");
+			}
+		}
+	}
+	return NULL;
+}
+
+static void
+format_PUSH_SDN_TUNNEL(const struct ofpact_push_sdn_tunnel *a, struct ds *s)
+{
+    ds_put_cstr(s, "push_sdn_tunnel:");
+    ds_put_format(s, "src_ip=>"IP_FMT, IP_ARGS(a->src_ip));
+    ds_put_format(s, ";dst_ip=>"IP_FMT, IP_ARGS(a->dst_ip));
+    ds_put_format(s, ";id_length=>%"PRIu8, a->id_length);
+    ds_put_format(s, ";tun_id1=>%"PRIu16, a->tun_id1);
+    ds_put_format(s, ";tun_id2=>%"PRIu16, a->tun_id2);
+    ds_put_format(s, ";tun_id3=>%"PRIu16, a->tun_id3);
+}
+
+static enum ofperr
+decode_OFPAT_RAW_POP_SDN_TUNNEL(struct ofpbuf *out)
+{
+	ofpact_put_POP_SDN_TUNNEL(out);
+	return 0;
+}
+
+static void
+encode_POP_SDN_TUNNEL(const struct ofpact_pop_sdn_tunnel *poptunnel,
+        			   enum ofp_version ofp_version, struct ofpbuf *out)
+{
+	put_OFPAT_POP_SDN_TUNNEL(out);
+}
+
+static char * OVS_WARN_UNUSED_RESULT
+parse_POP_SDN_TUNNEL(char *arg, struct ofpbuf *ofpacts,
+        			  enum ofputil_protocol *usable_protocols OVS_UNUSED)
+{
+	ofpact_put_POP_SDN_TUNNEL(ofpacts);
+	return NULL;
+}
+
+static void
+format_POP_SDN_TUNNEL(const struct ofpact_push_sdn_tunnel *a, struct ds *s)
+{
+    ds_put_cstr(s, "pop_sdn_tunnel");
+}
+
 /* Set queue action. */
 
 static enum ofperr
@@ -6189,6 +6350,8 @@ ofpact_is_set_or_move_action(const struct ofpact *a)
     case OFPACT_WRITE_ACTIONS:
     case OFPACT_WRITE_METADATA:
     case OFPACT_DEBUG_RECIRC:
+    case OFPACT_PUSH_SDN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_SDN_TUNNEL: /*edited by keyaozhang*/
         return false;
     default:
         OVS_NOT_REACHED();
@@ -6228,6 +6391,8 @@ ofpact_is_allowed_in_actions_set(const struct ofpact *a)
     case OFPACT_SET_VLAN_PCP:
     case OFPACT_SET_VLAN_VID:
     case OFPACT_STRIP_VLAN:
+    case OFPACT_PUSH_SDN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_SDN_TUNNEL: /*edited by keyaozhang*/
         return true;
 
     /* In general these actions are excluded because they are not part of
@@ -6333,6 +6498,8 @@ ofpacts_execute_action_set(struct ofpbuf *action_list,
     /* The OpenFlow spec "Action Set" section specifies this order. */
     ofpacts_copy_last(action_list, action_set, OFPACT_STRIP_VLAN);
     ofpacts_copy_last(action_list, action_set, OFPACT_POP_MPLS);
+    ofpacts_copy_last(action_list, action_set, OFPACT_POP_SDN_TUNNEL);/*edited by keyaozhang*/
+    ofpacts_copy_last(action_list, action_set, OFPACT_PUSH_SDN_TUNNEL);/*edited by keyaozhang*/
     ofpacts_copy_last(action_list, action_set, OFPACT_PUSH_MPLS);
     ofpacts_copy_last(action_list, action_set, OFPACT_PUSH_VLAN);
     ofpacts_copy_last(action_list, action_set, OFPACT_DEC_TTL);
@@ -6457,6 +6624,8 @@ ovs_instruction_type_from_ofpact_type(enum ofpact_type type)
     case OFPACT_PUSH_MPLS:
     case OFPACT_POP_MPLS:
     case OFPACT_SET_TUNNEL:
+    case OFPACT_PUSH_SDN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_SDN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_SET_QUEUE:
     case OFPACT_POP_QUEUE:
     case OFPACT_FIN_TIMEOUT:
@@ -6985,6 +7154,8 @@ ofpact_check__(enum ofputil_protocol *usable_protocols, struct ofpact *a,
         return 0;
 
     case OFPACT_SET_TUNNEL:
+    case OFPACT_PUSH_SDN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_SDN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_SET_QUEUE:
     case OFPACT_POP_QUEUE:
     case OFPACT_RESUBMIT:
@@ -7407,6 +7578,8 @@ get_ofpact_map(enum ofp_version version)
         { OFPACT_SET_L4_SRC_PORT, 9 },
         { OFPACT_SET_L4_DST_PORT, 10 },
         { OFPACT_ENQUEUE, 11 },
+        { OFPACT_PUSH_SDN_TUNNEL, 80},
+        { OFPACT_POP_SDN_TUNNEL, 81},
         { 0, -1 },
     };
 
@@ -7437,6 +7610,8 @@ get_ofpact_map(enum ofp_version version)
         { OFPACT_GROUP, 22 },
         { OFPACT_SET_IP_TTL, 23 },
         { OFPACT_DEC_TTL, 24 },
+        { OFPACT_PUSH_SDN_TUNNEL, 80},
+        { OFPACT_POP_SDN_TUNNEL, 81},
         { 0, -1 },
     };
 
@@ -7458,6 +7633,8 @@ get_ofpact_map(enum ofp_version version)
         { OFPACT_SET_FIELD, 25 },
         /* OF1.3+ OFPAT_PUSH_PBB (26) not supported. */
         /* OF1.3+ OFPAT_POP_PBB (27) not supported. */
+        { OFPACT_PUSH_SDN_TUNNEL, 80},
+        { OFPACT_POP_SDN_TUNNEL, 81},
         { 0, -1 },
     };
 
@@ -7567,6 +7744,8 @@ ofpact_outputs_to_port(const struct ofpact *ofpact, ofp_port_t port)
     case OFPACT_SET_MPLS_TTL:
     case OFPACT_DEC_MPLS_TTL:
     case OFPACT_SET_TUNNEL:
+    case OFPACT_PUSH_SDN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_SDN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_WRITE_METADATA:
     case OFPACT_SET_QUEUE:
     case OFPACT_POP_QUEUE:

@@ -503,6 +503,8 @@ requires_datapath_assistance(const struct nlattr *a)
     case OVS_ACTION_ATTR_HASH:
     case OVS_ACTION_ATTR_PUSH_MPLS:
     case OVS_ACTION_ATTR_POP_MPLS:
+    case OVS_ACTION_ATTR_SDN_TUNNEL_PUSH:
+    case OVS_ACTION_ATTR_SDN_TUNNEL_POP:
     case OVS_ACTION_ATTR_TRUNC:
         return false;
 
@@ -598,6 +600,22 @@ odp_execute_actions(void *dp, struct dp_packet_batch *batch, bool steal,
         case OVS_ACTION_ATTR_POP_MPLS:
             for (i = 0; i < cnt; i++) {
                 pop_mpls(packets[i], nl_attr_get_be16(a));
+            }
+            break;
+
+
+        case OVS_ACTION_ATTR_SDN_TUNNEL_PUSH:{
+            const struct ovs_action_push_sdn_tnl *sdt = nl_attr_get(a);
+
+            for (i = 0; i < cnt; i++) {
+        	    push_sdn_tunnel(packets[i], sdt);
+        	}
+            break;
+        }
+
+        case OVS_ACTION_ATTR_SDN_TUNNEL_POP:
+            for (i = 0; i < cnt; i++) {
+        	    pop_sdn_tunnel(packets[i]);
             }
             break;
 

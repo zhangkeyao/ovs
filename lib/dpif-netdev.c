@@ -4074,6 +4074,7 @@ handle_packet_upcall(struct dp_netdev_pmd_thread *pmd, struct dp_packet *packet,
     /* We can't allow the packet batching in the next loop to execute
      * the actions.  Otherwise, if there are any slow path actions,
      * we'll send the packet up twice. */
+
     packet_batch_init_packet(&b, packet);
     dp_netdev_execute_actions(pmd, &b, true, &match.flow,
                               actions->data, actions->size, now);
@@ -4616,6 +4617,8 @@ dp_execute_cb(void *aux_, struct dp_packet_batch *packets_,
     case OVS_ACTION_ATTR_POP_VLAN:
     case OVS_ACTION_ATTR_PUSH_MPLS:
     case OVS_ACTION_ATTR_POP_MPLS:
+    case OVS_ACTION_ATTR_SDN_TUNNEL_PUSH:
+    case OVS_ACTION_ATTR_SDN_TUNNEL_POP:
     case OVS_ACTION_ATTR_SET:
     case OVS_ACTION_ATTR_SET_MASKED:
     case OVS_ACTION_ATTR_SAMPLE:

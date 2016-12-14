@@ -639,6 +639,28 @@ struct ovs_action_push_vlan {
 	__be16 vlan_tci;	/* 802.1Q TCI (VLAN ID and priority). */
 };
 
+#ifndef __KERNEL__
+#define SDN_TNL_PUSH_SIZE 512
+
+/*
+ * struct ovs_action_push_sdn_tnl - %OVS_ACTION_ATTR_SDN_TUNNEL_PUSH
+ * @src_ip: Source ipv4 address of the tunnel.
+ * @dst_ip: Destination ipv4 address of the tunnel.
+ * @header_len: Length of the header to be pushed.
+ * @type: The type of sdn tunnel header.
+ * @header: Partial header for the tunnel. Tunnel push action can use
+ * this header to build final header according to actual packet parameters.
+ * Action added by keyaozhang
+ */
+struct ovs_action_push_sdn_tnl {
+	__be32 src_ip;
+	__be32 dst_ip;
+	uint32_t header_len;
+	uint8_t type;
+	uint8_t header[SDN_TNL_PUSH_SIZE];
+};
+#endif
+
 /* Data path hash algorithm for computing Datapath hash.
  *
  * The algorithm type only specifies the fields in a flow
@@ -794,6 +816,10 @@ enum ovs_nat_attr {
  * ovs_action_push_tnl.
  * @OVS_ACTION_ATTR_TUNNEL_POP: Lookup tunnel port by port-no passed and pop
  * tunnel header.
+ *
+ * @OVS_ACTION_ATTR_SDN_TUNNEL_PUSH: Push sdn tunnel header described by struct
+ * ovs_action_push_sdn_tnl. Action added by keyaozhang
+ * @OVS_ACTION_ATTR_SDN_TUNNEL_POP: Pop sdn tunnel header. Action added by keyaozhang
  */
 
 enum ovs_action_attr {
@@ -814,6 +840,8 @@ enum ovs_action_attr {
 				       * bits. */
 	OVS_ACTION_ATTR_CT,           /* Nested OVS_CT_ATTR_* . */
 	OVS_ACTION_ATTR_TRUNC,        /* u32 struct ovs_action_trunc. */
+	OVS_ACTION_ATTR_SDN_TUNNEL_PUSH,    /* struct ovs_action_push_sdn_tnl */
+	OVS_ACTION_ATTR_SDN_TUNNEL_POP,     /* No argument. */
 
 #ifndef __KERNEL__
 	OVS_ACTION_ATTR_TUNNEL_PUSH,   /* struct ovs_action_push_tnl*/

@@ -4,7 +4,12 @@ Open vSwitch
 Build Status:
 -------------
 
-[![Build Status](https://travis-ci.org/openvswitch/ovs.png)](https://travis-ci.org/openvswitch/ovs)
+[![Build Status](https://api.travis-ci.org/zhangkeyao/ovs.png)](https://travis-ci.org/zhangkeyao/ovs)
+
+What is our work based on Open vSwitch?
+-------------
+
+Modified openvswitch 2.6.1 to supoort our sdn tunnel action.
 
 What is Open vSwitch?
 ---------------------

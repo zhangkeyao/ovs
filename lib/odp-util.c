@@ -25,6 +25,7 @@
 #include <netinet/ip6.h>
 #include <stdlib.h>
 #include <string.h>
+#include <net/if.h>
 
 #include "byte-order.h"
 #include "coverage.h"
@@ -42,6 +43,10 @@
 #include "uuid.h"
 #include "openvswitch/vlog.h"
 
+#define DEFAULT_TTL 64
+#define IP_DF 0x4000
+static uint16_t tnl_udp_port_min = 32768;
+static uint16_t tnl_udp_port_max = 61000;
 VLOG_DEFINE_THIS_MODULE(odp_util);
 
 /* The interface between userspace and kernel uses an "OVS_*" prefix.
@@ -113,6 +118,8 @@ odp_action_len(uint16_t type)
     case OVS_ACTION_ATTR_USERSPACE: return ATTR_LEN_VARIABLE;
     case OVS_ACTION_ATTR_PUSH_VLAN: return sizeof(struct ovs_action_push_vlan);
     case OVS_ACTION_ATTR_POP_VLAN: return 0;
+    case OVS_ACTION_ATTR_SDN_TUNNEL_PUSH: return sizeof(struct ovs_action_push_sdn_tnl);
+    case OVS_ACTION_ATTR_SDN_TUNNEL_POP: return 0;
     case OVS_ACTION_ATTR_PUSH_MPLS: return sizeof(struct ovs_action_push_mpls);
     case OVS_ACTION_ATTR_POP_MPLS: return sizeof(ovs_be16);
     case OVS_ACTION_ATTR_RECIRC: return sizeof(uint32_t);
@@ -859,6 +866,8 @@ format_odp_action(struct ds *ds, const struct nlattr *a)
     case OVS_ACTION_ATTR_CT:
         format_odp_conntrack_action(ds, a);
         break;
+    case OVS_ACTION_ATTR_SDN_TUNNEL_PUSH:
+    case OVS_ACTION_ATTR_SDN_TUNNEL_POP:
     case OVS_ACTION_ATTR_UNSPEC:
     case __OVS_ACTION_ATTR_MAX:
     default:
@@ -5430,6 +5439,102 @@ commit_odp_tunnel_action(const struct flow *flow, struct flow *base,
     }
 }
 
+/*TODO:edited by keyaozhang*/
+static enum slow_path_reason
+commit_push_sdn_tunnel_action(const struct flow *flow, struct flow *base,
+						  struct ofpbuf *odp_actions)
+{
+	struct ovs_action_push_sdn_tnl sdt;
+	void *l2, *l3, *l4, *l4_5;
+	struct eth_header *eth;
+	struct ip_header *ip;
+	struct udp_header *udp;
+	struct sdn_tunnel_header *sdth;
+	if (memcmp(&base->sdtunnel, &flow->sdtunnel, sizeof base->sdtunnel)){
+		if (flow->sdtunnel.tun_type == SDN_TNL_TYPE) {
+			memcpy(&base->sdtunnel, &flow->sdtunnel, sizeof base->sdtunnel);
+			sdt.src_ip = flow->sdtunnel.src_ip;
+			sdt.dst_ip = flow->sdtunnel.dst_ip;
+			sdt.type = flow->sdtunnel.tun_type;
+			sdt.header_len = ETH_HEADER_LEN + IP_HEADER_LEN + UDP_HEADER_LEN + SDN_TUNNEL_HEADER_LEN;
+
+			l2 = sdt.header;
+			eth = (struct eth_header *)l2;
+			eth->eth_dst = flow->dl_dst;
+			eth->eth_src = flow->dl_src;
+			eth->eth_type = htons(ETH_TYPE_IP);
+
+			l3 = eth + 1;
+			ip = (struct ip_header *)l3;
+			ip->ip_ihl_ver = IP_IHL_VER(5, 4);
+			ip->ip_tos = flow->nw_tos;
+			ip->ip_ttl = DEFAULT_TTL;
+			ip->ip_proto = IPPROTO_UDP;
+			ip->ip_id = 0;
+			ip->ip_frag_off = htons(IP_DF);
+			put_16aligned_be32(&ip->ip_src, flow->sdtunnel.src_ip);
+			put_16aligned_be32(&ip->ip_dst, flow->sdtunnel.dst_ip);
+
+			l4 = ip + 1;
+			udp = (struct udp_header *)l4;
+			udp->udp_dst = htons(SDN_TNL_DST_PORT);
+			udp->udp_src = htons((((uint64_t) flow_hash_5tuple(flow, 0) * (tnl_udp_port_max - tnl_udp_port_min)) >> 32) +
+			                 tnl_udp_port_min);
+
+			l4_5 = udp + 1;
+			sdth = (struct sdn_tunnel_header *)l4_5;
+			sdth->sdt_ver_type = SDT_VER_TYPE(SDN_TNL_VERSION, SDN_TNL_TYPE);
+			sdth->sdt_len = flow->sdtunnel.id_length;
+			sdth->sdt_id1 = htons(flow->sdtunnel.tun_id1);
+			sdth->sdt_id2 = htons(flow->sdtunnel.tun_id2);
+			sdth->sdt_id3 = htons(flow->sdtunnel.tun_id3);
+			nl_msg_put_unspec(odp_actions, OVS_ACTION_ATTR_SDN_TUNNEL_PUSH,
+													  &sdt, sizeof sdt);
+			return SLOW_ACTION;
+		}
+	}
+	return 0;
+}
+
+static enum slow_path_reason
+commit_pop_sdn_tunnel_action(const struct flow *flow, struct flow *base,
+						  struct ofpbuf *odp_actions)
+{
+    FILE *fp;
+    int i;
+    /*
+    if((fp = fopen("/home/zhangkeyao/execute_action.log", "at")) != NULL){
+        fprintf(fp, "Commit Pop SDN Tunnel Ready:\n");
+        fprintf(fp, "Base Flow SDTunnel:\n");
+        void *header = &base->sdtunnel;
+        for (i = 0; i < sizeof base->sdtunnel; i++){
+            fprintf(fp, "%02x ", *(uint8_t *)(header + i));
+            if ( (i + 1) % 10 == 0 )
+            	fprintf(fp, "\n");
+        }
+        fprintf(fp, "\n");
+
+        fprintf(fp, "Flow SDTunnel:\n");
+        header = &flow->sdtunnel;
+        for (i = 0; i < sizeof flow->sdtunnel; i++){
+            fprintf(fp, "%02x ", *(uint8_t *)(header + i));
+            if ( (i + 1) % 10 == 0 )
+                fprintf(fp, "\n");
+        }
+        fprintf(fp, "\n");
+        fclose(fp);
+    }
+    */
+	if (memcmp(&base->sdtunnel, &flow->sdtunnel, sizeof base->sdtunnel)){
+		if (base->sdtunnel.tun_type == SDN_TNL_TYPE) {
+			memcpy(&base->sdtunnel, &flow->sdtunnel, sizeof base->sdtunnel);
+			nl_msg_put_flag(odp_actions, OVS_ACTION_ATTR_SDN_TUNNEL_POP);
+			return SLOW_ACTION;
+		}
+	}
+	return 0;
+}
+
 static bool
 commit(enum ovs_key_attr attr, bool use_masked_set,
        const void *key, void *base, void *mask, size_t size,
@@ -5944,7 +6049,7 @@ commit_odp_actions(const struct flow *flow, struct flow *base,
                    struct ofpbuf *odp_actions, struct flow_wildcards *wc,
                    bool use_masked)
 {
-    enum slow_path_reason slow1, slow2;
+	enum slow_path_reason slow1, slow2, slow3, slow4;
 
     commit_set_ether_addr_action(flow, base, odp_actions, wc, use_masked);
     slow1 = commit_set_nw_action(flow, base, odp_actions, wc, use_masked);
@@ -5952,8 +6057,21 @@ commit_odp_actions(const struct flow *flow, struct flow *base,
     slow2 = commit_set_icmp_action(flow, base, odp_actions, wc);
     commit_mpls_action(flow, base, odp_actions);
     commit_vlan_action(flow->vlan_tci, base, odp_actions, wc);
+    slow3 = commit_push_sdn_tunnel_action(flow, base, odp_actions);
+    slow4 = commit_pop_sdn_tunnel_action(flow, base, odp_actions);
     commit_set_priority_action(flow, base, odp_actions, wc, use_masked);
     commit_set_pkt_mark_action(flow, base, odp_actions, wc, use_masked);
 
-    return slow1 ? slow1 : slow2;
+    if (slow1)
+        return slow1;
+    else if (slow2)
+        return slow2;
+    else if (slow3)
+        return slow3;
+    else if (slow4)
+        return slow4;
+    else
+        return 0;
+
+    //return slow1 ? slow1 : slow2;
 }
