@@ -2227,6 +2227,8 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			[OVS_ACTION_ATTR_USERSPACE] = (u32)-1,
 			[OVS_ACTION_ATTR_PUSH_MPLS] = sizeof(struct ovs_action_push_mpls),
 			[OVS_ACTION_ATTR_POP_MPLS] = sizeof(__be16),
+			[OVS_ACTION_ATTR_SDN_TUNNEL_PUSH] = sizeof(struct ovs_action_push_sdn_tnl),
+			[OVS_ACTION_ATTR_SDN_TUNNEL_POP] = 0,
 			[OVS_ACTION_ATTR_PUSH_VLAN] = sizeof(struct ovs_action_push_vlan),
 			[OVS_ACTION_ATTR_POP_VLAN] = 0,
 			[OVS_ACTION_ATTR_SET] = (u32)-1,
@@ -2333,6 +2335,10 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			 */
 			eth_type = htons(0);
 			break;
+
+		case OVS_ACTION_ATTR_SDN_TUNNEL_PUSH:/*edited by keyaozhang*/
+		case OVS_ACTION_ATTR_SDN_TUNNEL_POP:
+		    break;
 
 		case OVS_ACTION_ATTR_SET:
 			err = validate_set(a, key, sfa,

@@ -44,7 +44,6 @@
 #include "openvswitch/vlog.h"
 
 #define DEFAULT_TTL 64
-#define IP_DF 0x4000
 static uint16_t tnl_udp_port_min = 32768;
 static uint16_t tnl_udp_port_max = 61000;
 VLOG_DEFINE_THIS_MODULE(odp_util);
@@ -5471,7 +5470,7 @@ commit_push_sdn_tunnel_action(const struct flow *flow, struct flow *base,
 			ip->ip_ttl = DEFAULT_TTL;
 			ip->ip_proto = IPPROTO_UDP;
 			ip->ip_id = 0;
-			ip->ip_frag_off = htons(IP_DF);
+			ip->ip_frag_off = 0;
 			put_16aligned_be32(&ip->ip_src, flow->sdtunnel.src_ip);
 			put_16aligned_be32(&ip->ip_dst, flow->sdtunnel.dst_ip);
 
