@@ -32,6 +32,8 @@
 .gitattributes
 .project
 .cproject
+.init_ovs.sh
+.del_ovs.sh
 /Makefile
 /Makefile.in
 /aclocal.m4
