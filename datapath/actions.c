@@ -18,6 +18,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+
 #include <linux/skbuff.h>
 #include <linux/in.h>
 #include <linux/ip.h>
@@ -37,6 +38,8 @@
 #include <net/dsfield.h>
 #include <net/mpls.h>
 #include <net/sctp/checksum.h>
+#include <net/sdntunnel.h>
+#include <net/udp.h>
 
 #include "datapath.h"
 #include "conntrack.h"
@@ -239,6 +242,48 @@ static int set_mpls(struct sk_buff *skb, struct sw_flow_key *flow_key,
 
 	*stack = lse;
 	flow_key->mpls.top_lse = lse;
+	return 0;
+}
+
+static int push_sdn_tunnel(struct sk_buff *skb, struct sw_flow_key *key,
+		     const struct ovs_action_push_sdn_tnl *sdt)
+{
+	struct udphdr *udph = NULL;
+	struct iphdr *iph = NULL;
+	uint16_t ip_tot_size, udp_tot_size;
+	int udp_offset = skb_transport_offset(skb);
+
+	if (sdt->type != SDT_HDR_TYPE)
+		return -EINVAL;
+	if (skb_cow_head(skb, sdt->header_len) < 0) {
+		return -ENOMEM;
+	}
+
+	skb_push(skb, sdt->header_len);
+	memcpy(skb->data, sdt->header, sdt->header_len);
+	skb_reset_mac_header(skb);
+	skb_set_network_header(skb, sizeof(struct ethhdr));
+	skb_set_transport_header(skb, sizeof(struct iphdr) + sizeof(struct ethhdr));
+
+	iph = ip_hdr(skb);
+	ip_tot_size = (skb->len) - sizeof(struct ethhdr);
+	iph->tot_len = htons(ip_tot_size);
+	ip_send_check(iph);
+
+	udph = udp_hdr(skb);
+	udp_tot_size = ip_tot_size - sizeof(struct iphdr);
+	udph->len = htons(udp_tot_size);
+	udp_set_csum(false, skb, iph->saddr, iph->daddr, skb->len - udp_offset);
+	return 0;
+}
+
+static int pop_sdn_tunnel(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	int header_len = sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr) + sizeof(struct sdthdr);
+	if (!pskb_may_pull(skb, header_len))
+		return -ENOMEM;
+	else
+		__skb_pull(skb, header_len);
 	return 0;
 }
 
@@ -1130,6 +1175,14 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 
 		case OVS_ACTION_ATTR_POP_MPLS:
 			err = pop_mpls(skb, key, nla_get_be16(a));
+			break;
+
+		case OVS_ACTION_ATTR_SDN_TUNNEL_PUSH:
+			err = push_sdn_tunnel(skb, key, nla_data(a));
+			break;
+
+		case OVS_ACTION_ATTR_SDN_TUNNEL_POP:
+			err = pop_sdn_tunnel(skb, key);
 			break;
 
 		case OVS_ACTION_ATTR_PUSH_VLAN:

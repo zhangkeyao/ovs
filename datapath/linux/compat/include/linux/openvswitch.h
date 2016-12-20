@@ -639,7 +639,6 @@ struct ovs_action_push_vlan {
 	__be16 vlan_tci;	/* 802.1Q TCI (VLAN ID and priority). */
 };
 
-#ifndef __KERNEL__
 #define SDN_TNL_PUSH_SIZE 512
 
 /*
@@ -659,7 +658,6 @@ struct ovs_action_push_sdn_tnl {
 	uint8_t type;
 	uint8_t header[SDN_TNL_PUSH_SIZE];
 };
-#endif
 
 /* Data path hash algorithm for computing Datapath hash.
  *

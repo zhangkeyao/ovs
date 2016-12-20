@@ -87,6 +87,7 @@ openvswitch_headers += \
 	linux/compat/include/net/rtnetlink.h \
 	linux/compat/include/net/udp.h \
 	linux/compat/include/net/udp_tunnel.h \
+	linux/compat/include/net/sdttunnel.h \
 	linux/compat/include/net/sock.h \
 	linux/compat/include/net/stt.h \
 	linux/compat/include/net/vrf.h \
