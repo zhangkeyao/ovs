@@ -1,6 +1,6 @@
 # 发现 openvswitch.ko 依赖于 libcrc32c 模块，于是先载入 libcrc32c
 modprobe libcrc32c
-modprobe gre
+#modprobe gre
 # 载入 openvswitch 模块
 modprobe openvswitch
 # 创建 ovsdb 数据库

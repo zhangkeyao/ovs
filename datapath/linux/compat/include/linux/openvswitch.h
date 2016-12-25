@@ -639,7 +639,7 @@ struct ovs_action_push_vlan {
 	__be16 vlan_tci;	/* 802.1Q TCI (VLAN ID and priority). */
 };
 
-#define SDN_TNL_PUSH_SIZE 512
+#define SDN_TNL_PUSH_SIZE 256
 
 /*
  * struct ovs_action_push_sdn_tnl - %OVS_ACTION_ATTR_SDN_TUNNEL_PUSH

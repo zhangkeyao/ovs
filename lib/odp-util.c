@@ -5444,6 +5444,8 @@ commit_push_sdn_tunnel_action(const struct flow *flow, struct flow *base,
 						  struct ofpbuf *odp_actions)
 {
 	struct ovs_action_push_sdn_tnl sdt;
+	FILE *fp;
+	int i;
 	void *l2, *l3, *l4, *l4_5;
 	struct eth_header *eth;
 	struct ip_header *ip;
@@ -5487,6 +5489,16 @@ commit_push_sdn_tunnel_action(const struct flow *flow, struct flow *base,
 			sdth->sdt_id1 = htons(flow->sdtunnel.tun_id1);
 			sdth->sdt_id2 = htons(flow->sdtunnel.tun_id2);
 			sdth->sdt_id3 = htons(flow->sdtunnel.tun_id3);
+			if((fp = fopen("/home/zhangkeyao/execute_action.log", "at")) != NULL){
+			    fprintf(fp, "commit push_sdn_tunnel:\n");
+			    for (i = 0; i < sdt.header_len; i++){
+			        fprintf(fp, "%02x ", *(sdt.header + i));
+			        if ( (i + 1) % 8 == 0 )
+			            fprintf(fp, "\n");
+			    }
+			    fprintf(fp, "\n");
+			    fclose(fp);
+			}
 			nl_msg_put_unspec(odp_actions, OVS_ACTION_ATTR_SDN_TUNNEL_PUSH,
 													  &sdt, sizeof sdt);
 			return SLOW_ACTION;
@@ -6060,7 +6072,7 @@ commit_odp_actions(const struct flow *flow, struct flow *base,
     slow4 = commit_pop_sdn_tunnel_action(flow, base, odp_actions);
     commit_set_priority_action(flow, base, odp_actions, wc, use_masked);
     commit_set_pkt_mark_action(flow, base, odp_actions, wc, use_masked);
-
+    /*
     if (slow1)
         return slow1;
     else if (slow2)
@@ -6071,6 +6083,6 @@ commit_odp_actions(const struct flow *flow, struct flow *base,
         return slow4;
     else
         return 0;
-
-    //return slow1 ? slow1 : slow2;
+	*/
+    return slow1 ? slow1 : slow2;
 }
