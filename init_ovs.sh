@@ -16,5 +16,5 @@ ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
 # 初始化数据库                 
 ovs-vsctl --no-wait init
 # 开启 openvswitch 守护进程
-# ovs-vswitchd --pidfile --detach
-ovs-vswitchd --pidfile
+ovs-vswitchd --pidfile --detach
+# ovs-vswitchd --pidfile
