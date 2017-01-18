@@ -89,6 +89,10 @@
     /*editd by keyaozhang*/                                             \
     OFPACT(PUSH_SDN_TUNNEL, ofpact_push_sdn_tunnel, ofpact, "push_sdn_tunnel") \
     OFPACT(POP_SDN_TUNNEL, ofpact_null, ofpact, "pop_sdn_tunnel") \
+	OFPACT(PUSH_GRE_TUNNEL, ofpact_push_gre_tunnel, ofpact, "push_gre_tunnel") \
+    OFPACT(POP_GRE_TUNNEL, ofpact_null, ofpact, "pop_gre_tunnel") \
+	OFPACT(PUSH_VXLAN_TUNNEL, ofpact_push_vxlan_tunnel, ofpact, "push_vxlan_tunnel") \
+    OFPACT(POP_VXLAN_TUNNEL, ofpact_null, ofpact, "pop_vxlan_tunnel") \
                                                                         \
     /* Metadata. */                                                     \
     OFPACT(SET_TUNNEL,      ofpact_tunnel,      ofpact, "set_tunnel")   \
@@ -544,6 +548,27 @@ struct ofpact_push_sdn_tunnel{
  * Used for OFPAT_POP_SDN_TUNNEL.*/
 struct ofpact_pop_sdn_tunnel{
     struct ofpact ofpact;
+};
+
+/* edited by keyaozhang
+ * OFPACT_PUSH_GRE_TUNNEL.
+ *
+ * Used for OFPAT_PUSH_GRE_TUNNEL.*/
+struct ofpact_push_gre_tunnel{
+    struct ofpact ofpact;
+    ovs_be32 src_ip;
+    ovs_be32 dst_ip;
+};
+
+/* edited by keyaozhang
+ * OFPACT_PUSH_VXLAN_TUNNEL.
+ *
+ * Used for OFPAT_PUSH_VXLAN_TUNNEL.*/
+struct ofpact_push_vxlan_tunnel{
+    struct ofpact ofpact;
+    ovs_be32 src_ip;
+    ovs_be32 dst_ip;
+    uint32_t vx_vni;
 };
 
 /* OFPACT_SET_QUEUE.

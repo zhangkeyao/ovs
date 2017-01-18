@@ -312,6 +312,18 @@ enum ofp_raw_action_type {
     /* OF1.0+(81): void. */
     OFPAT_RAW_POP_SDN_TUNNEL,
 
+	/* OF1.0+(82): struct ofp_action_push_gre_tunnel. */
+	OFPAT_RAW_PUSH_GRE_TUNNEL,
+
+	/* OF1.0+(83): void. */
+	OFPAT_RAW_POP_GRE_TUNNEL,
+
+	/* OF1.0+(84): struct ofp_action_push_vxlan_tunnel. */
+	OFPAT_RAW_PUSH_VXLAN_TUNNEL,
+
+	/* OF1.0+(85): void. */
+	OFPAT_RAW_POP_VXLAN_TUNNEL,
+
 /* ## ------------------ ## */
 /* ## Debugging actions. ## */
 /* ## ------------------ ## */
@@ -424,6 +436,10 @@ ofpact_next_flattened(const struct ofpact *ofpact)
     case OFPACT_SET_TUNNEL:
     case OFPACT_PUSH_SDN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_POP_SDN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_PUSH_GRE_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_GRE_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_PUSH_VXLAN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_VXLAN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_SET_QUEUE:
     case OFPACT_POP_QUEUE:
     case OFPACT_FIN_TIMEOUT:
@@ -3798,7 +3814,7 @@ decode_OFPAT_RAW_POP_SDN_TUNNEL(struct ofpbuf *out)
 }
 
 static void
-encode_POP_SDN_TUNNEL(const struct ofpact_pop_sdn_tunnel *poptunnel,
+encode_POP_SDN_TUNNEL(const struct ofpact_null *null OVS_UNUSED,
         			   enum ofp_version ofp_version, struct ofpbuf *out)
 {
 	put_OFPAT_POP_SDN_TUNNEL(out);
@@ -3813,9 +3829,243 @@ parse_POP_SDN_TUNNEL(char *arg, struct ofpbuf *ofpacts,
 }
 
 static void
-format_POP_SDN_TUNNEL(const struct ofpact_push_sdn_tunnel *a, struct ds *s)
+format_POP_SDN_TUNNEL(const struct ofpact_null *a OVS_UNUSED, struct ds *s)
 {
     ds_put_cstr(s, "pop_sdn_tunnel");
+}
+
+/* PUSH GRE Tunnel Action. edited by keyaozhang*/
+struct ofp_action_push_gre_tunnel {
+    ovs_be16 type;                  /* Type. */
+    ovs_be16 len;
+    ovs_be32 src_ip;
+    ovs_be32 dst_ip;
+    uint8_t pad[4];                /*pad to 64 bits*/
+};
+OFP_ASSERT(sizeof(struct ofp_action_push_gre_tunnel) == 16);
+
+static enum ofperr
+decode_OFPAT_RAW_PUSH_GRE_TUNNEL(const struct ofp_action_push_gre_tunnel *oapgt,
+								 enum ofp_version ofp_version OVS_UNUSED,
+								 struct ofpbuf *out)
+{
+	struct ofpact_push_gre_tunnel *tunnel;
+	enum ofperr error;
+
+	tunnel = ofpact_put_PUSH_GRE_TUNNEL(out);
+	tunnel->src_ip = oapgt->src_ip;
+	tunnel->dst_ip = oapgt->dst_ip;
+	return 0;
+}
+
+static void
+encode_PUSH_GRE_TUNNEL(const struct ofpact_push_gre_tunnel *pushtunnel,
+        			   enum ofp_version ofp_version, struct ofpbuf *out)
+{
+	struct ofp_action_push_gre_tunnel *oapgt;
+	oapgt = put_OFPAT_PUSH_GRE_TUNNEL(out);
+	oapgt->src_ip = pushtunnel->src_ip;
+	oapgt->dst_ip = pushtunnel->dst_ip;
+}
+
+static char * OVS_WARN_UNUSED_RESULT
+parse_PUSH_GRE_TUNNEL(char *arg, struct ofpbuf *ofpacts,
+        			  enum ofputil_protocol *usable_protocols OVS_UNUSED)
+{
+	struct ofpact_push_gre_tunnel *tunnel;
+	char *inter_ptr = NULL, *outer_ptr = NULL;
+	char *key, *value, *key_value, *ptr = arg;
+	char *error;
+	int count[2] = {0};
+	int i;
+	tunnel = ofpact_put_PUSH_GRE_TUNNEL(ofpacts);
+	while ((key_value = strtok_r(ptr, ";", &outer_ptr)) != NULL)
+	{
+		key = strtok_r(key_value, "=>", &inter_ptr);
+		value = strtok_r(NULL, "=>", &inter_ptr);
+		if (!strcasecmp(key, "src_ip")){
+			error = str_to_ip(value, &tunnel->src_ip);
+			count[0] = 1;
+		}else if (!strcasecmp(key, "dst_ip")){
+			error = str_to_ip(value, &tunnel->dst_ip);
+			count[1] = 1;
+		}else
+			error = xasprintf("unknown PUSH_GRE_TUNNEL keyword %s", key);
+		if (error)
+			return error;
+		ptr = NULL;
+	}
+	for (i = 0; i < 2; i++)
+	{
+		if (count[i] == 0){
+			switch (i){
+			case 0:
+				return xasprintf("invalid PUSH_GRE_TUNNEL action: lack of 'src_ip'");
+			case 1:
+				return xasprintf("invalid PUSH_GRE_TUNNEL action: lack of 'dst_ip'");
+			default:
+				return xasprintf("invalid PUSH_GRE_TUNNEL action: unknown error");
+			}
+		}
+	}
+	return NULL;
+}
+
+static void
+format_PUSH_GRE_TUNNEL(const struct ofpact_push_gre_tunnel *a, struct ds *s)
+{
+    ds_put_cstr(s, "push_gre_tunnel:");
+    ds_put_format(s, "src_ip=>"IP_FMT, IP_ARGS(a->src_ip));
+    ds_put_format(s, ";dst_ip=>"IP_FMT, IP_ARGS(a->dst_ip));
+}
+
+static enum ofperr
+decode_OFPAT_RAW_POP_GRE_TUNNEL(struct ofpbuf *out)
+{
+	ofpact_put_POP_GRE_TUNNEL(out);
+	return 0;
+}
+
+static void
+encode_POP_GRE_TUNNEL(const struct ofpact_null *null OVS_UNUSED,
+        			   enum ofp_version ofp_version, struct ofpbuf *out)
+{
+	put_OFPAT_POP_GRE_TUNNEL(out);
+}
+
+static char * OVS_WARN_UNUSED_RESULT
+parse_POP_GRE_TUNNEL(char *arg, struct ofpbuf *ofpacts,
+        			  enum ofputil_protocol *usable_protocols OVS_UNUSED)
+{
+	ofpact_put_POP_GRE_TUNNEL(ofpacts);
+	return NULL;
+}
+
+static void
+format_POP_GRE_TUNNEL(const struct ofpact_null *a OVS_UNUSED, struct ds *s)
+{
+    ds_put_cstr(s, "pop_gre_tunnel");
+}
+
+/* PUSH VXLAN Tunnel Action. edited by keyaozhang*/
+struct ofp_action_push_vxlan_tunnel {
+    ovs_be16 type;                  /* Type. */
+    ovs_be16 len;
+    ovs_be32 src_ip;
+    ovs_be32 dst_ip;
+    ovs_be32 vx_vni;
+};
+OFP_ASSERT(sizeof(struct ofp_action_push_vxlan_tunnel) == 16);
+
+static enum ofperr
+decode_OFPAT_RAW_PUSH_VXLAN_TUNNEL(const struct ofp_action_push_vxlan_tunnel *oapvt,
+								 enum ofp_version ofp_version OVS_UNUSED,
+								 struct ofpbuf *out)
+{
+	struct ofpact_push_vxlan_tunnel *tunnel;
+	enum ofperr error;
+
+	tunnel = ofpact_put_PUSH_VXLAN_TUNNEL(out);
+	tunnel->src_ip = oapvt->src_ip;
+	tunnel->dst_ip = oapvt->dst_ip;
+	tunnel->vx_vni = ntohl(oapvt->vx_vni);
+	return 0;
+}
+
+static void
+encode_PUSH_VXLAN_TUNNEL(const struct ofpact_push_vxlan_tunnel *pushtunnel,
+        			   enum ofp_version ofp_version, struct ofpbuf *out)
+{
+	struct ofp_action_push_vxlan_tunnel *oapvt;
+	oapvt = put_OFPAT_PUSH_VXLAN_TUNNEL(out);
+	oapvt->src_ip = pushtunnel->src_ip;
+	oapvt->dst_ip = pushtunnel->dst_ip;
+	oapvt->vx_vni = htonl(pushtunnel->vx_vni);
+}
+
+static char * OVS_WARN_UNUSED_RESULT
+parse_PUSH_VXLAN_TUNNEL(char *arg, struct ofpbuf *ofpacts,
+        			  enum ofputil_protocol *usable_protocols OVS_UNUSED)
+{
+	struct ofpact_push_vxlan_tunnel *tunnel;
+	char *inter_ptr = NULL, *outer_ptr = NULL;
+	char *key, *value, *key_value, *ptr = arg;
+	char *error;
+	int count[3] = {0};
+	int i;
+	tunnel = ofpact_put_PUSH_VXLAN_TUNNEL(ofpacts);
+	while ((key_value = strtok_r(ptr, ";", &outer_ptr)) != NULL)
+	{
+		key = strtok_r(key_value, "=>", &inter_ptr);
+		value = strtok_r(NULL, "=>", &inter_ptr);
+		if (!strcasecmp(key, "src_ip")){
+			error = str_to_ip(value, &tunnel->src_ip);
+			count[0] = 1;
+		}else if (!strcasecmp(key, "dst_ip")){
+			error = str_to_ip(value, &tunnel->dst_ip);
+			count[1] = 1;
+		}else if (!strcasecmp(key, "vx_vni")){
+			error = str_to_u32(value, &tunnel->vx_vni);
+			count[2] = 1;
+		}
+			error = xasprintf("unknown PUSH_VXLAN_TUNNEL keyword %s", key);
+		if (error)
+			return error;
+		ptr = NULL;
+	}
+	for (i = 0; i < 3; i++)
+	{
+		if (count[i] == 0){
+			switch (i){
+			case 0:
+				return xasprintf("invalid PUSH_VXLAN_TUNNEL action: lack of 'src_ip'");
+			case 1:
+				return xasprintf("invalid PUSH_VXLAN_TUNNEL action: lack of 'dst_ip'");
+			case 2:
+				return xasprintf("invalid PUSH_VXLAN_TUNNEL action: lack of 'vx_vni'");
+			default:
+				return xasprintf("invalid PUSH_VXLAN_TUNNEL action: unknown error");
+			}
+		}
+	}
+	return NULL;
+}
+
+static void
+format_PUSH_VXLAN_TUNNEL(const struct ofpact_push_vxlan_tunnel *a, struct ds *s)
+{
+    ds_put_cstr(s, "push_vxlan_tunnel:");
+    ds_put_format(s, "src_ip=>"IP_FMT, IP_ARGS(a->src_ip));
+    ds_put_format(s, ";dst_ip=>"IP_FMT, IP_ARGS(a->dst_ip));
+    ds_put_format(s, ";vx_vni=>%"PRIu32, a->vx_vni);
+}
+
+static enum ofperr
+decode_OFPAT_RAW_POP_VXLAN_TUNNEL(struct ofpbuf *out)
+{
+	ofpact_put_POP_VXLAN_TUNNEL(out);
+	return 0;
+}
+
+static void
+encode_POP_VXLAN_TUNNEL(const struct ofpact_null *null OVS_UNUSED,
+        			   enum ofp_version ofp_version, struct ofpbuf *out)
+{
+	put_OFPAT_POP_VXLAN_TUNNEL(out);
+}
+
+static char * OVS_WARN_UNUSED_RESULT
+parse_POP_VXLAN_TUNNEL(char *arg, struct ofpbuf *ofpacts,
+        			  enum ofputil_protocol *usable_protocols OVS_UNUSED)
+{
+	ofpact_put_POP_VXLAN_TUNNEL(ofpacts);
+	return NULL;
+}
+
+static void
+format_POP_VXLAN_TUNNEL(const struct ofpact_null *a OVS_UNUSED, struct ds *s)
+{
+    ds_put_cstr(s, "pop_vxlan_tunnel");
 }
 
 /* Set queue action. */
@@ -6352,6 +6602,10 @@ ofpact_is_set_or_move_action(const struct ofpact *a)
     case OFPACT_DEBUG_RECIRC:
     case OFPACT_PUSH_SDN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_POP_SDN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_PUSH_GRE_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_GRE_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_PUSH_VXLAN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_VXLAN_TUNNEL: /*edited by keyaozhang*/
         return false;
     default:
         OVS_NOT_REACHED();
@@ -6393,6 +6647,10 @@ ofpact_is_allowed_in_actions_set(const struct ofpact *a)
     case OFPACT_STRIP_VLAN:
     case OFPACT_PUSH_SDN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_POP_SDN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_PUSH_GRE_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_GRE_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_PUSH_VXLAN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_VXLAN_TUNNEL: /*edited by keyaozhang*/
         return true;
 
     /* In general these actions are excluded because they are not part of
@@ -6499,6 +6757,10 @@ ofpacts_execute_action_set(struct ofpbuf *action_list,
     ofpacts_copy_last(action_list, action_set, OFPACT_STRIP_VLAN);
     ofpacts_copy_last(action_list, action_set, OFPACT_POP_MPLS);
     ofpacts_copy_last(action_list, action_set, OFPACT_POP_SDN_TUNNEL);/*edited by keyaozhang*/
+    ofpacts_copy_last(action_list, action_set, OFPACT_POP_VXLAN_TUNNEL);/*edited by keyaozhang*/
+    ofpacts_copy_last(action_list, action_set, OFPACT_POP_GRE_TUNNEL);/*edited by keyaozhang*/
+    ofpacts_copy_last(action_list, action_set, OFPACT_PUSH_GRE_TUNNEL);/*edited by keyaozhang*/
+    ofpacts_copy_last(action_list, action_set, OFPACT_PUSH_VXLAN_TUNNEL);/*edited by keyaozhang*/
     ofpacts_copy_last(action_list, action_set, OFPACT_PUSH_SDN_TUNNEL);/*edited by keyaozhang*/
     ofpacts_copy_last(action_list, action_set, OFPACT_PUSH_MPLS);
     ofpacts_copy_last(action_list, action_set, OFPACT_PUSH_VLAN);
@@ -6626,6 +6888,10 @@ ovs_instruction_type_from_ofpact_type(enum ofpact_type type)
     case OFPACT_SET_TUNNEL:
     case OFPACT_PUSH_SDN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_POP_SDN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_PUSH_GRE_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_GRE_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_PUSH_VXLAN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_VXLAN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_SET_QUEUE:
     case OFPACT_POP_QUEUE:
     case OFPACT_FIN_TIMEOUT:
@@ -7156,6 +7422,10 @@ ofpact_check__(enum ofputil_protocol *usable_protocols, struct ofpact *a,
     case OFPACT_SET_TUNNEL:
     case OFPACT_PUSH_SDN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_POP_SDN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_PUSH_GRE_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_GRE_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_PUSH_VXLAN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_VXLAN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_SET_QUEUE:
     case OFPACT_POP_QUEUE:
     case OFPACT_RESUBMIT:
@@ -7580,6 +7850,10 @@ get_ofpact_map(enum ofp_version version)
         { OFPACT_ENQUEUE, 11 },
         { OFPACT_PUSH_SDN_TUNNEL, 80},
         { OFPACT_POP_SDN_TUNNEL, 81},
+        { OFPACT_PUSH_GRE_TUNNEL, 82},
+        { OFPACT_POP_GRE_TUNNEL, 83},
+        { OFPACT_PUSH_VXLAN_TUNNEL, 84},
+        { OFPACT_POP_VXLAN_TUNNEL, 85},
         { 0, -1 },
     };
 
@@ -7612,6 +7886,10 @@ get_ofpact_map(enum ofp_version version)
         { OFPACT_DEC_TTL, 24 },
         { OFPACT_PUSH_SDN_TUNNEL, 80},
         { OFPACT_POP_SDN_TUNNEL, 81},
+        { OFPACT_PUSH_GRE_TUNNEL, 82},
+        { OFPACT_POP_GRE_TUNNEL, 83},
+        { OFPACT_PUSH_VXLAN_TUNNEL, 84},
+        { OFPACT_POP_VXLAN_TUNNEL, 85},
         { 0, -1 },
     };
 
@@ -7635,6 +7913,10 @@ get_ofpact_map(enum ofp_version version)
         /* OF1.3+ OFPAT_POP_PBB (27) not supported. */
         { OFPACT_PUSH_SDN_TUNNEL, 80},
         { OFPACT_POP_SDN_TUNNEL, 81},
+        { OFPACT_PUSH_GRE_TUNNEL, 82},
+        { OFPACT_POP_GRE_TUNNEL, 83},
+        { OFPACT_PUSH_VXLAN_TUNNEL, 84},
+        { OFPACT_POP_VXLAN_TUNNEL, 85},
         { 0, -1 },
     };
 
@@ -7746,6 +8028,10 @@ ofpact_outputs_to_port(const struct ofpact *ofpact, ofp_port_t port)
     case OFPACT_SET_TUNNEL:
     case OFPACT_PUSH_SDN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_POP_SDN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_PUSH_GRE_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_GRE_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_PUSH_VXLAN_TUNNEL: /*edited by keyaozhang*/
+    case OFPACT_POP_VXLAN_TUNNEL: /*edited by keyaozhang*/
     case OFPACT_WRITE_METADATA:
     case OFPACT_SET_QUEUE:
     case OFPACT_POP_QUEUE:
