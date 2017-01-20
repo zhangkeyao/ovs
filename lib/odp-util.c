@@ -5489,16 +5489,6 @@ commit_push_sdn_tunnel_action(const struct flow *flow, struct flow *base,
 			sdth->sdt_id1 = htons(flow->sdtunnel.tun_id1);
 			sdth->sdt_id2 = htons(flow->sdtunnel.tun_id2);
 			sdth->sdt_id3 = htons(flow->sdtunnel.tun_id3);
-			if((fp = fopen("/home/zhangkeyao/execute_action.log", "at")) != NULL){
-			    fprintf(fp, "commit push_sdn_tunnel:\n");
-			    for (i = 0; i < sdt.header_len; i++){
-			        fprintf(fp, "%02x ", *(sdt.header + i));
-			        if ( (i + 1) % 8 == 0 )
-			            fprintf(fp, "\n");
-			    }
-			    fprintf(fp, "\n");
-			    fclose(fp);
-			}
 			nl_msg_put_unspec(odp_actions, OVS_ACTION_ATTR_SDN_TUNNEL_PUSH,
 													  &sdt, sizeof sdt);
 			return SLOW_ACTION;

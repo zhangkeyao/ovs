@@ -818,6 +818,14 @@ enum ovs_nat_attr {
  * @OVS_ACTION_ATTR_SDN_TUNNEL_PUSH: Push sdn tunnel header described by struct
  * ovs_action_push_sdn_tnl. Action added by keyaozhang
  * @OVS_ACTION_ATTR_SDN_TUNNEL_POP: Pop sdn tunnel header. Action added by keyaozhang
+ *
+ * @OVS_ACTION_ATTR_GRE_TUNNEL_PUSH: Push gre tunnel header described by struct
+ * ovs_action_push_gre_tnl. Action added by keyaozhang
+ * @OVS_ACTION_ATTR_GRE_TUNNEL_POP: Pop gre tunnel header. Action added by keyaozhang
+ *
+ * @OVS_ACTION_ATTR_VXLAN_TUNNEL_PUSH: Push vxlan tunnel header described by struct
+ * ovs_action_push_vxlan_tnl. Action added by keyaozhang
+ * @OVS_ACTION_ATTR_VXLAN_TUNNEL_POP: Pop vxlan tunnel header. Action added by keyaozhang
  */
 
 enum ovs_action_attr {
@@ -840,6 +848,10 @@ enum ovs_action_attr {
 	OVS_ACTION_ATTR_TRUNC,        /* u32 struct ovs_action_trunc. */
 	OVS_ACTION_ATTR_SDN_TUNNEL_PUSH,    /* struct ovs_action_push_sdn_tnl */
 	OVS_ACTION_ATTR_SDN_TUNNEL_POP,     /* No argument. */
+	OVS_ACTION_ATTR_GRE_TUNNEL_PUSH,    /* struct ovs_action_push_gre_tnl */
+	OVS_ACTION_ATTR_GRE_TUNNEL_POP,     /* No argument. */
+	OVS_ACTION_ATTR_VXLAN_TUNNEL_PUSH,  /* struct ovs_action_push_vxlan_tnl */
+	OVS_ACTION_ATTR_VXLAN_TUNNEL_POP,   /* No argument. */
 
 #ifndef __KERNEL__
 	OVS_ACTION_ATTR_TUNNEL_PUSH,   /* struct ovs_action_push_tnl*/
