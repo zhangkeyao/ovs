@@ -1076,6 +1076,9 @@ struct gre_base_hdr {
 #define GRE_FLAGS       0x00F8
 #define GRE_VERSION     0x0007
 
+#define GRE_TNL_FLAGS     0x0000
+#define GRE_TNL_PROTOCOL  0x6558
+
 /* VXLAN protocol header */
 struct vxlanhdr {
     ovs_16aligned_be32 vx_flags;
@@ -1083,6 +1086,9 @@ struct vxlanhdr {
 };
 
 #define VXLAN_FLAGS 0x08000000  /* struct vxlanhdr.vx_flags required value. */
+#define VXLAN_TNL_DST_PORT 4789   /* UDP Port for VXLAN Tunnel */
+#define VXLAN_TNL_FLAGS    0x08000000
+
 
 void ipv6_format_addr(const struct in6_addr *addr, struct ds *);
 void ipv6_format_addr_bracket(const struct in6_addr *addr, struct ds *,

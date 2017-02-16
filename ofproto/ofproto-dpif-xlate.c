@@ -4063,6 +4063,32 @@ compose_push_sdn_tunnel_action(struct xlate_ctx *ctx, struct ofpact_push_sdn_tun
 }
 
 static void
+compose_push_gre_tunnel_action(struct xlate_ctx *ctx, struct ofpact_push_gre_tunnel *gretunnel)
+{
+    struct flow *flow = &ctx->xin->flow;
+    struct flow_wildcards *wc = ctx->wc;
+
+    memset(&wc->masks.gretunnel, 0xff, sizeof wc->masks.gretunnel);
+    flow->gretunnel.src_ip = gretunnel->src_ip;
+    flow->gretunnel.dst_ip = gretunnel->dst_ip;
+    flow->gretunnel.gre_flags = htons(GRE_TNL_FLAGS);
+    flow->gretunnel.gre_proto = htons(GRE_TNL_PROTOCOL);
+}
+
+static void
+compose_push_vxlan_tunnel_action(struct xlate_ctx *ctx, struct ofpact_push_vxlan_tunnel *vxltunnel)
+{
+    struct flow *flow = &ctx->xin->flow;
+    struct flow_wildcards *wc = ctx->wc;
+
+    memset(&wc->masks.vxltunnel, 0xff, sizeof wc->masks.vxltunnel);
+    flow->vxltunnel.src_ip = vxltunnel->src_ip;
+    flow->vxltunnel.dst_ip = vxltunnel->dst_ip;
+    flow->vxltunnel.vx_flags = htonl(VXLAN_TNL_FLAGS);
+    flow->vxltunnel.vx_vni = htonl(vxltunnel->vx_vni);
+}
+
+static void
 xlate_output_action(struct xlate_ctx *ctx,
                     ofp_port_t port, uint16_t max_len, bool may_packet_in)
 {
@@ -4582,6 +4608,10 @@ freeze_unroll_actions(const struct ofpact *a, const struct ofpact *end,
         case OFPACT_NAT:
         case OFPACT_PUSH_SDN_TUNNEL:/*edited by keyaozhang*/
         case OFPACT_POP_SDN_TUNNEL:/*edited by keyaozhang*/
+        case OFPACT_PUSH_GRE_TUNNEL:/*edited by keyaozhang*/
+        case OFPACT_POP_GRE_TUNNEL:/*edited by keyaozhang*/
+        case OFPACT_PUSH_VXLAN_TUNNEL:/*edited by keyaozhang*/
+        case OFPACT_POP_VXLAN_TUNNEL:/*edited by keyaozhang*/
             /* These may not generate PACKET INs. */
             break;
 
@@ -4820,6 +4850,10 @@ recirc_for_mpls(const struct ofpact *a, struct xlate_ctx *ctx)
     case OFPACT_POP_MPLS:
     case OFPACT_PUSH_SDN_TUNNEL:/*edited by keyaozhang*/
     case OFPACT_POP_SDN_TUNNEL:/*edited by keyaozhang*/
+    case OFPACT_PUSH_GRE_TUNNEL:/*edited by keyaozhang*/
+    case OFPACT_POP_GRE_TUNNEL:/*edited by keyaozhang*/
+    case OFPACT_PUSH_VXLAN_TUNNEL:/*edited by keyaozhang*/
+    case OFPACT_POP_VXLAN_TUNNEL:/*edited by keyaozhang*/
     case OFPACT_POP_QUEUE:
     case OFPACT_FIN_TIMEOUT:
     case OFPACT_RESUBMIT:
@@ -5085,6 +5119,26 @@ do_xlate_actions(const struct ofpact *ofpacts, size_t ofpacts_len,
         	memset(&wc->masks.sdtunnel, 0xff, sizeof wc->masks.sdtunnel);
         	//commit_pop_sdn_tunnel_action(flow, &ctx->base_flow, ctx->odp_actions);
         	break;
+
+        case OFPACT_PUSH_GRE_TUNNEL:
+            compose_push_gre_tunnel_action(ctx, ofpact_get_PUSH_GRE_TUNNEL(a));
+            break;
+
+        case OFPACT_POP_GRE_TUNNEL:
+            memset(&flow->gretunnel, 0x0, sizeof flow->gretunnel);
+            memset(&wc->masks.gretunnel, 0xff, sizeof wc->masks.gretunnel);
+            //commit_pop_gre_tunnel_action(flow, &ctx->base_flow, ctx->odp_actions);
+            break;
+
+        case OFPACT_PUSH_VXLAN_TUNNEL:
+            compose_push_vxlan_tunnel_action(ctx, ofpact_get_PUSH_VXLAN_TUNNEL(a));
+            break;
+
+        case OFPACT_POP_VXLAN_TUNNEL:
+            memset(&flow->vxltunnel, 0x0, sizeof flow->vxltunnel);
+            memset(&wc->masks.vxltunnel, 0xff, sizeof wc->masks.vxltunnel);
+            //commit_pop_vxlan_tunnel_action(flow, &ctx->base_flow, ctx->odp_actions);
+            break;
 
         case OFPACT_SET_MPLS_LABEL:
             compose_set_mpls_label_action(

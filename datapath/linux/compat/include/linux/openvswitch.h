@@ -659,6 +659,44 @@ struct ovs_action_push_sdn_tnl {
 	uint8_t header[SDN_TNL_PUSH_SIZE];
 };
 
+#define GRE_TNL_PUSH_SIZE 256
+
+/*
+ * struct ovs_action_push_gre_tnl - %OVS_ACTION_ATTR_GRE_TUNNEL_PUSH
+ * @src_ip: Source ipv4 address of the tunnel.
+ * @dst_ip: Destination ipv4 address of the tunnel.
+ * @header_len: Length of the header to be pushed.
+ * @header: Partial header for the tunnel. Tunnel push action can use
+ * this header to build final header according to actual packet parameters.
+ * Action added by keyaozhang
+ */
+struct ovs_action_push_gre_tnl {
+	__be32 src_ip;
+	__be32 dst_ip;
+	uint32_t header_len;
+	uint8_t header[GRE_TNL_PUSH_SIZE];
+};
+
+#define VXLAN_TNL_PUSH_SIZE 256
+
+/*
+ * struct ovs_action_push_vxlan_tnl - %OVS_ACTION_ATTR_VXLAN_TUNNEL_PUSH
+ * @src_ip: Source ipv4 address of the tunnel.
+ * @dst_ip: Destination ipv4 address of the tunnel.
+ * @header_len: Length of the header to be pushed.
+ * @header: Partial header for the tunnel. Tunnel push action can use
+ * this header to build final header according to actual packet parameters.
+ * Action added by keyaozhang
+ */
+struct ovs_action_push_vxlan_tnl {
+	__be32 src_ip;
+	__be32 dst_ip;
+	uint32_t header_len;
+	uint32_t vx_vni;
+	uint8_t header[VXLAN_TNL_PUSH_SIZE];
+};
+
+
 /* Data path hash algorithm for computing Datapath hash.
  *
  * The algorithm type only specifies the fields in a flow

@@ -505,6 +505,10 @@ requires_datapath_assistance(const struct nlattr *a)
     case OVS_ACTION_ATTR_POP_MPLS:
     case OVS_ACTION_ATTR_SDN_TUNNEL_PUSH:
     case OVS_ACTION_ATTR_SDN_TUNNEL_POP:
+    case OVS_ACTION_ATTR_GRE_TUNNEL_PUSH:
+    case OVS_ACTION_ATTR_GRE_TUNNEL_POP:
+    case OVS_ACTION_ATTR_VXLAN_TUNNEL_PUSH:
+    case OVS_ACTION_ATTR_VXLAN_TUNNEL_POP:
     case OVS_ACTION_ATTR_TRUNC:
         return false;
 
@@ -603,7 +607,7 @@ odp_execute_actions(void *dp, struct dp_packet_batch *batch, bool steal,
             }
             break;
 
-
+        /*********************edited by keyaozhang*********************/
         case OVS_ACTION_ATTR_SDN_TUNNEL_PUSH:{
             const struct ovs_action_push_sdn_tnl *sdt = nl_attr_get(a);
 
@@ -618,6 +622,37 @@ odp_execute_actions(void *dp, struct dp_packet_batch *batch, bool steal,
         	    pop_sdn_tunnel(packets[i]);
             }
             break;
+
+        case OVS_ACTION_ATTR_GRE_TUNNEL_PUSH:{
+            const struct ovs_action_push_gre_tnl *gret = nl_attr_get(a);
+
+            for (i = 0; i < cnt; i++) {
+        	    push_gre_tunnel(packets[i], gret);
+        	}
+            break;
+        }
+
+        case OVS_ACTION_ATTR_GRE_TUNNEL_POP:
+            for (i = 0; i < cnt; i++) {
+        	    pop_gre_tunnel(packets[i]);
+            }
+            break;
+
+        case OVS_ACTION_ATTR_VXLAN_TUNNEL_PUSH:{
+            const struct ovs_action_push_vxlan_tnl *vxlt = nl_attr_get(a);
+
+            for (i = 0; i < cnt; i++) {
+        	    push_vxlan_tunnel(packets[i], vxlt);
+        	}
+            break;
+        }
+
+        case OVS_ACTION_ATTR_VXLAN_TUNNEL_POP:
+            for (i = 0; i < cnt; i++) {
+        	    pop_vxlan_tunnel(packets[i]);
+            }
+            break;
+        /*********************edited by keyaozhang*********************/
 
         case OVS_ACTION_ATTR_SET:
             for (i = 0; i < cnt; i++) {

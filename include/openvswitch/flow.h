@@ -129,10 +129,16 @@ struct flow {
                                  * Keep last for BUILD_ASSERT_DECL below. */
     /*SDN Tunnel Header (64-bit aligned). edited by keyaozhang*/
     struct sdn_tnl sdtunnel;    /* SDN tunnel parameters */
+    /*VXLAN Tunnel Header (64-bit aligned). edited by keyaozhang*/
+    struct vxlan_tnl vxltunnel;    /* SDN tunnel parameters */
+    /*GRE Tunnel Header (64-bit aligned). edited by keyaozhang*/
+    struct gre_tnl gretunnel;    /* SDN tunnel parameters */
 };
 BUILD_ASSERT_DECL(sizeof(struct flow) % sizeof(uint64_t) == 0);
 BUILD_ASSERT_DECL(sizeof(struct flow_tnl) % sizeof(uint64_t) == 0);
 BUILD_ASSERT_DECL(sizeof(struct sdn_tnl) % sizeof(uint64_t) == 0);
+BUILD_ASSERT_DECL(sizeof(struct gre_tnl) % sizeof(uint64_t) == 0);
+BUILD_ASSERT_DECL(sizeof(struct vxlan_tnl) % sizeof(uint64_t) == 0);
 
 #define FLOW_U64S (sizeof(struct flow) / sizeof(uint64_t))
 

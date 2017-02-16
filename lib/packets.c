@@ -1271,6 +1271,8 @@ packet_format_tcp_flags(struct ds *s, uint16_t tcp_flags)
     }
 }
 
+/***********************************edited by keyaozhang***********************************/
+
 void
 push_sdn_tunnel(struct dp_packet *packet, const void *sdt)
 {
@@ -1299,23 +1301,6 @@ push_sdn_tunnel(struct dp_packet *packet, const void *sdt)
     csum = packet_csum_pseudoheader(ip);
     csum = csum_continue(csum, udp, udp_tot_size);
     udp->udp_csum = csum_finish(csum);
-    /*
-    if((fp = fopen("/home/zhangkeyao/execute_action.log", "at")) != NULL){
-        bool a = dp_packet_rss_valid(packet);
-        if (a)
-            fprintf(fp, "RSS valid\n");
-        else
-            fprintf(fp, "RSS Invalid\n");
-        fprintf(fp, "execute push_sdn_tunnel packet metadata:\n");
-        for (i = 0; i < dp_packet_size(packet); i++){
-            fprintf(fp, "%02x ", *(uint8_t *)(header + i));
-            if ( (i + 1) % 10 == 0 )
-                fprintf(fp, "\n");
-        }
-        fprintf(fp, "\n");
-        fclose(fp);
-    }
-    */
 }
 
 void
@@ -1328,7 +1313,74 @@ pop_sdn_tunnel(struct dp_packet *packet)
     dp_packet_reset_packet(packet, header_len);
 }
 
+void
+push_gre_tunnel(struct dp_packet *packet, const void *gret)
+{
+    void *header;
+    struct eth_header *eth;
+    struct ip_header *ip;
+    const struct ovs_action_push_gre_tnl *push_gret = (const struct ovs_action_push_gre_tnl *)gret;
+    const uint8_t *pdata = push_gret->header;
+    int ip_tot_size, udp_tot_size;
+    header = dp_packet_push_uninit(packet, push_gret->header_len);
+    ip_tot_size = dp_packet_size(packet) - sizeof (struct eth_header);
+    memcpy(header, pdata, push_gret->header_len);
+    eth = (struct eth_header *)header;
 
+    ip = (struct ip_header *)(eth + 1);
+    ip->ip_tot_len = htons(ip_tot_size);
+    ip->ip_csum = recalc_csum16(ip->ip_csum, 0, ip->ip_tot_len);
+}
+
+void
+pop_gre_tunnel(struct dp_packet *packet)
+{
+    int header_len = ETH_HEADER_LEN + IP_HEADER_LEN + sizeof(struct gre_base_hdr);
+    if (header_len > dp_packet_size(packet)) {
+        return;
+    }
+    dp_packet_reset_packet(packet, header_len);
+}
+
+void
+push_vxlan_tunnel(struct dp_packet *packet, const void *vxlt)
+{
+    void *header;
+    struct eth_header *eth;
+    struct ip_header *ip;
+    struct udp_header *udp;
+    const struct ovs_action_push_vxlan_tnl *push_vxlt = (const struct ovs_action_push_vxlan_tnl *)vxlt;
+    const uint8_t *pdata = push_vxlt->header;
+    int ip_tot_size, udp_tot_size;
+    header = dp_packet_push_uninit(packet, push_vxlt->header_len);
+    ip_tot_size = dp_packet_size(packet) - sizeof (struct eth_header);
+    memcpy(header, pdata, push_vxlt->header_len);
+    eth = (struct eth_header *)header;
+
+    ip = (struct ip_header *)(eth + 1);
+    ip->ip_tot_len = htons(ip_tot_size);
+    ip->ip_csum = recalc_csum16(ip->ip_csum, 0, ip->ip_tot_len);
+
+    udp = (struct udp_header *)(ip + 1);
+    udp_tot_size = ip_tot_size - IP_HEADER_LEN;
+    udp->udp_len = htons(udp_tot_size);
+    uint32_t csum;
+    csum = packet_csum_pseudoheader(ip);
+    csum = csum_continue(csum, udp, udp_tot_size);
+    udp->udp_csum = csum_finish(csum);
+}
+
+void
+pop_vxlan_tunnel(struct dp_packet *packet)
+{
+    int header_len = ETH_HEADER_LEN + IP_HEADER_LEN + UDP_HEADER_LEN + sizeof(struct vxlanhdr);
+    if (header_len > dp_packet_size(packet)) {
+        return;
+    }
+    dp_packet_reset_packet(packet, header_len);
+}
+
+/***********************************edited by keyaozhang***********************************/
 
 #define ARP_PACKET_SIZE  (2 + ETH_HEADER_LEN + VLAN_HEADER_LEN + \
                           ARP_ETH_HEADER_LEN)

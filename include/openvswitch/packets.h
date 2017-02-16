@@ -50,6 +50,23 @@ struct sdn_tnl {
     uint16_t tun_id3;
 };
 
+/* GRE Tunnel information. edited by keyaozhang */
+struct gre_tnl {
+    ovs_be32 src_ip;
+    ovs_be32 dst_ip;
+    ovs_be16 gre_flags;
+    ovs_be16 gre_proto;
+    uint8_t pad1[4];
+};
+
+/* VXLAN Tunnel information. edited by keyaozhang */
+struct vxlan_tnl {
+    ovs_be32 src_ip;
+    ovs_be32 dst_ip;
+    ovs_be32 vx_flags;
+    ovs_be32 vx_vni;
+};
+
 /* Some flags are exposed through OpenFlow while others are used only
  * internally. */
 

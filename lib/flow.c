@@ -797,6 +797,15 @@ miniflow_extract(struct dp_packet *packet, struct miniflow *dst)
                     miniflow_push_be16(mf, sdtunnel.tun_id2, sdntnl->sdt_id2);
                     miniflow_push_be16(mf, sdtunnel.tun_id3, sdntnl->sdt_id3);
                 }
+
+                else if (udp->udp_dst == htons(VXLAN_TNL_DST_PORT)) { /*edited by keyaozhang*/
+                    data_try_pull(&data, &size, sizeof *udp);
+                    miniflow_push_be32(mf, vxltunnel.src_ip, src_ip);
+                    miniflow_push_be32(mf, vxltunnel.dst_ip, dst_ip);
+                    const struct vxlanhdr *vxltnl = data;
+                    miniflow_push_words(mf, vxltunnel.vx_flags, &vxltnl->vx_flags, 1);
+                }
+
             }
         } else if (OVS_LIKELY(nw_proto == IPPROTO_SCTP)) {
             if (OVS_LIKELY(size >= SCTP_HEADER_LEN)) {
@@ -840,6 +849,12 @@ miniflow_extract(struct dp_packet *packet, struct miniflow *dst)
                 miniflow_push_be16(mf, tp_dst, htons(icmp->icmp6_code));
                 miniflow_pad_to_64(mf, tp_dst);
             }
+        } else if (OVS_LIKELY(nw_proto == IPPROTO_GRE)) {
+            miniflow_push_be32(mf, gretunnel.src_ip, src_ip);
+            miniflow_push_be32(mf, gretunnel.dst_ip, dst_ip);
+            const struct gre_base_hdr *gretnl = data;
+            miniflow_push_be16(mf, gretunnel.gre_flags, gretnl->flags);
+            miniflow_push_be16(mf, gretunnel.gre_proto, gretnl->protocol);
         }
     }
  out:
@@ -1408,7 +1423,17 @@ void flow_wildcards_init_for_packet(struct flow_wildcards *wc,
                 WC_MASK_FIELD(wc, sdtunnel.tun_id1);
                 WC_MASK_FIELD(wc, sdtunnel.tun_id2);
                 WC_MASK_FIELD(wc, sdtunnel.tun_id3);
+            } else if (flow->tp_dst == htons(VXLAN_TNL_DST_PORT)) {
+                WC_MASK_FIELD(wc, vxltunnel.src_ip);
+                WC_MASK_FIELD(wc, vxltunnel.dst_ip);
+                WC_MASK_FIELD(wc, vxltunnel.vx_flags);
+                WC_MASK_FIELD(wc, vxltunnel.vx_vni);
             }
+        } else if (flow->nw_proto == IPPROTO_GRE) {
+            WC_MASK_FIELD(wc, gretunnel.src_ip);
+            WC_MASK_FIELD(wc, gretunnel.dst_ip);
+            WC_MASK_FIELD(wc, gretunnel.gre_flags);
+            WC_MASK_FIELD(wc, gretunnel.gre_proto);
         }
     }
 }
@@ -1471,7 +1496,7 @@ flow_wc_map(const struct flow *flow, struct flowmap *map)
             FLOWMAP_SET(map, tcp_flags);
         }
 
-        if (OVS_UNLIKELY(flow->tp_dst == htons(SDN_TNL_DST_PORT))){ /*edited by keyaozhang*/
+        if (OVS_UNLIKELY(flow->tp_dst == htons(SDN_TNL_DST_PORT))) { /*edited by keyaozhang*/
             FLOWMAP_SET(map, sdtunnel.src_ip);
             FLOWMAP_SET(map, sdtunnel.dst_ip);
             FLOWMAP_SET(map, sdtunnel.tun_type);
@@ -1479,6 +1504,18 @@ flow_wc_map(const struct flow *flow, struct flowmap *map)
             FLOWMAP_SET(map, sdtunnel.tun_id1);
             FLOWMAP_SET(map, sdtunnel.tun_id2);
             FLOWMAP_SET(map, sdtunnel.tun_id3);
+        } else if (OVS_UNLIKELY(flow->tp_dst == htons(VXLAN_TNL_DST_PORT))) { /*edited by keyaozhang*/
+        	FLOWMAP_SET(map, vxltunnel.src_ip);
+        	FLOWMAP_SET(map, vxltunnel.dst_ip);
+        	FLOWMAP_SET(map, vxltunnel.vx_flags);
+        	FLOWMAP_SET(map, vxltunnel.vx_vni);
+        }
+
+        if (OVS_UNLIKELY(flow->nw_proto == IPPROTO_GRE)) { /*edited by keyaozhang*/
+            FLOWMAP_SET(map, gretunnel.src_ip);
+            FLOWMAP_SET(map, gretunnel.dst_ip);
+            FLOWMAP_SET(map, gretunnel.gre_flags);
+            FLOWMAP_SET(map, gretunnel.gre_proto);
         }
     } else if (flow->dl_type == htons(ETH_TYPE_IPV6)) {
         FLOWMAP_SET(map, ipv6_src);
