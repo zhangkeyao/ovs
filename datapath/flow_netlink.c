@@ -2229,6 +2229,10 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 			[OVS_ACTION_ATTR_POP_MPLS] = sizeof(__be16),
 			[OVS_ACTION_ATTR_SDN_TUNNEL_PUSH] = sizeof(struct ovs_action_push_sdn_tnl),
 			[OVS_ACTION_ATTR_SDN_TUNNEL_POP] = 0,
+			[OVS_ACTION_ATTR_GRE_TUNNEL_PUSH] = sizeof(struct ovs_action_push_gre_tnl),
+			[OVS_ACTION_ATTR_GRE_TUNNEL_POP] = 0,
+			[OVS_ACTION_ATTR_VXLAN_TUNNEL_PUSH] = sizeof(struct ovs_action_push_vxlan_tnl),
+			[OVS_ACTION_ATTR_VXLAN_TUNNEL_POP] = 0,
 			[OVS_ACTION_ATTR_PUSH_VLAN] = sizeof(struct ovs_action_push_vlan),
 			[OVS_ACTION_ATTR_POP_VLAN] = 0,
 			[OVS_ACTION_ATTR_SET] = (u32)-1,
@@ -2338,6 +2342,10 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 
 		case OVS_ACTION_ATTR_SDN_TUNNEL_PUSH:/*edited by keyaozhang*/
 		case OVS_ACTION_ATTR_SDN_TUNNEL_POP:
+		case OVS_ACTION_ATTR_GRE_TUNNEL_PUSH:
+		case OVS_ACTION_ATTR_GRE_TUNNEL_POP:
+		case OVS_ACTION_ATTR_VXLAN_TUNNEL_PUSH:
+		case OVS_ACTION_ATTR_VXLAN_TUNNEL_POP:
 		    break;
 
 		case OVS_ACTION_ATTR_SET:

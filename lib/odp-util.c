@@ -6199,7 +6199,7 @@ commit_odp_actions(const struct flow *flow, struct flow *base,
     slow6 = commit_pop_vxlan_tunnel_action(flow, base, odp_actions);
     commit_set_priority_action(flow, base, odp_actions, wc, use_masked);
     commit_set_pkt_mark_action(flow, base, odp_actions, wc, use_masked);
-
+    /*
     if (slow1)
         return slow1;
     else if (slow2)
@@ -6214,6 +6214,6 @@ commit_odp_actions(const struct flow *flow, struct flow *base,
         return slow6;
     else
         return 0;
-
-    /*return slow1 ? slow1 : slow2;*/
+	*/
+    return slow1 ? slow1 : slow2;
 }

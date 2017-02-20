@@ -39,12 +39,18 @@
 #include <net/mpls.h>
 #include <net/sctp/checksum.h>
 #include <net/sdntunnel.h>
+#include <net/gre.h>
+#include <net/vxlan.h>
 #include <net/udp.h>
 
 #include "datapath.h"
 #include "conntrack.h"
 #include "gso.h"
 #include "vport.h"
+
+#define GRE_TNL_FLAGS     0x0000
+#define GRE_TNL_PROTOCOL  0x6558
+#define VXLAN_TNL_FLAGS    0x08000000
 
 static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			      struct sw_flow_key *key,
@@ -245,13 +251,15 @@ static int set_mpls(struct sk_buff *skb, struct sw_flow_key *flow_key,
 	return 0;
 }
 
+/***********************************edited by keyaozhang***********************************/
+
 static int push_sdn_tunnel(struct sk_buff *skb, struct sw_flow_key *key,
 		     const struct ovs_action_push_sdn_tnl *sdt)
 {
 	struct udphdr *udph = NULL;
 	struct iphdr *iph = NULL;
 	uint16_t ip_tot_size, udp_tot_size;
-	int udp_offset = skb_transport_offset(skb);
+	//int udp_offset = skb_transport_offset(skb);
 
 	if (sdt->type != SDT_HDR_TYPE)
 		return -EINVAL;
@@ -273,7 +281,8 @@ static int push_sdn_tunnel(struct sk_buff *skb, struct sw_flow_key *key,
 	udph = udp_hdr(skb);
 	udp_tot_size = ip_tot_size - sizeof(struct iphdr);
 	udph->len = htons(udp_tot_size);
-	udp_set_csum(false, skb, iph->saddr, iph->daddr, skb->len - udp_offset);
+	//udp_set_csum(false, skb, iph->saddr, iph->daddr, skb->len - udp_offset);
+	udp_set_csum(false, skb, iph->saddr, iph->daddr, udp_tot_size);
 	return 0;
 }
 
@@ -286,6 +295,83 @@ static int pop_sdn_tunnel(struct sk_buff *skb, struct sw_flow_key *key)
 		__skb_pull(skb, header_len);
 	return 0;
 }
+
+static int push_gre_tunnel(struct sk_buff *skb, struct sw_flow_key *key,
+		     const struct ovs_action_push_gre_tnl *gret)
+{
+	struct iphdr *iph = NULL;
+	uint16_t ip_tot_size;
+
+	if (skb_cow_head(skb, gret->header_len) < 0) {
+		return -ENOMEM;
+	}
+
+	skb_push(skb, gret->header_len);
+	memcpy(skb->data, gret->header, gret->header_len);
+	skb_reset_mac_header(skb);
+	skb_set_network_header(skb, sizeof(struct ethhdr));
+	skb_set_transport_header(skb, sizeof(struct iphdr) + sizeof(struct ethhdr));
+
+	iph = ip_hdr(skb);
+	ip_tot_size = (skb->len) - sizeof(struct ethhdr);
+	iph->tot_len = htons(ip_tot_size);
+	ip_send_check(iph);
+
+	return 0;
+}
+
+static int pop_gre_tunnel(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	int header_len = sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct gre_base_hdr);
+	if (!pskb_may_pull(skb, header_len))
+		return -ENOMEM;
+	else
+		__skb_pull(skb, header_len);
+	return 0;
+}
+
+static int push_vxlan_tunnel(struct sk_buff *skb, struct sw_flow_key *key,
+		     const struct ovs_action_push_vxlan_tnl *vxlt)
+{
+	struct udphdr *udph = NULL;
+	struct iphdr *iph = NULL;
+	uint16_t ip_tot_size, udp_tot_size;
+	//int udp_offset = skb_transport_offset(skb);
+
+	if (skb_cow_head(skb, vxlt->header_len) < 0) {
+		return -ENOMEM;
+	}
+
+	skb_push(skb, vxlt->header_len);
+	memcpy(skb->data, vxlt->header, vxlt->header_len);
+	skb_reset_mac_header(skb);
+	skb_set_network_header(skb, sizeof(struct ethhdr));
+	skb_set_transport_header(skb, sizeof(struct iphdr) + sizeof(struct ethhdr));
+
+	iph = ip_hdr(skb);
+	ip_tot_size = (skb->len) - sizeof(struct ethhdr);
+	iph->tot_len = htons(ip_tot_size);
+	ip_send_check(iph);
+
+	udph = udp_hdr(skb);
+	udp_tot_size = ip_tot_size - sizeof(struct iphdr);
+	udph->len = htons(udp_tot_size);
+	//udp_set_csum(false, skb, iph->saddr, iph->daddr, skb->len - udp_offset);
+	udp_set_csum(false, skb, iph->saddr, iph->daddr, udp_tot_size);
+	return 0;
+}
+
+static int pop_vxlan_tunnel(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	int header_len = sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr) + sizeof(struct vxlanhdr);
+	if (!pskb_may_pull(skb, header_len))
+		return -ENOMEM;
+	else
+		__skb_pull(skb, header_len);
+	return 0;
+}
+
+/***********************************edited by keyaozhang***********************************/
 
 static int pop_vlan(struct sk_buff *skb, struct sw_flow_key *key)
 {
@@ -1177,6 +1263,7 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			err = pop_mpls(skb, key, nla_get_be16(a));
 			break;
 
+		/*********************edited by keyaozhang*********************/
 		case OVS_ACTION_ATTR_SDN_TUNNEL_PUSH:
 			err = push_sdn_tunnel(skb, key, nla_data(a));
 			break;
@@ -1184,6 +1271,23 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 		case OVS_ACTION_ATTR_SDN_TUNNEL_POP:
 			err = pop_sdn_tunnel(skb, key);
 			break;
+
+		case OVS_ACTION_ATTR_GRE_TUNNEL_PUSH:
+			err = push_gre_tunnel(skb, key, nla_data(a));
+			break;
+
+		case OVS_ACTION_ATTR_GRE_TUNNEL_POP:
+			err = pop_gre_tunnel(skb, key);
+			break;
+
+		case OVS_ACTION_ATTR_VXLAN_TUNNEL_PUSH:
+			err = push_vxlan_tunnel(skb, key, nla_data(a));
+			break;
+
+		case OVS_ACTION_ATTR_VXLAN_TUNNEL_POP:
+			err = pop_vxlan_tunnel(skb, key);
+			break;
+		/*********************edited by keyaozhang*********************/
 
 		case OVS_ACTION_ATTR_PUSH_VLAN:
 			err = push_vlan(skb, key, nla_data(a));
