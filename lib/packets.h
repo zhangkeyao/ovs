@@ -1110,5 +1110,7 @@ void compose_nd_na(struct dp_packet *, const struct eth_addr eth_src,
                    ovs_be32 rso_flags);
 uint32_t packet_csum_pseudoheader(const struct ip_header *);
 void IP_ECN_set_ce(struct dp_packet *pkt, bool is_ipv6);
+void sdn_encrypt(struct dp_packet *packet, const void *enc);
+void sdn_decrypt(struct dp_packet *packet, const void *dec);
 
 #endif /* packets.h */

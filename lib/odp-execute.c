@@ -504,6 +504,8 @@ requires_datapath_assistance(const struct nlattr *a)
     case OVS_ACTION_ATTR_PUSH_MPLS:
     case OVS_ACTION_ATTR_POP_MPLS:
     case OVS_ACTION_ATTR_TRUNC:
+    case OVS_ACTION_ATTR_SDN_ENCRYPT:
+    case OVS_ACTION_ATTR_SDN_DECRYPT:
         return false;
 
     case OVS_ACTION_ATTR_UNSPEC:
@@ -600,6 +602,24 @@ odp_execute_actions(void *dp, struct dp_packet_batch *batch, bool steal,
                 pop_mpls(packets[i], nl_attr_get_be16(a));
             }
             break;
+
+        case OVS_ACTION_ATTR_SDN_ENCRYPT:{
+            const struct ovs_action_sdn_encrypt *enc = nl_attr_get(a);
+
+            for (i = 0; i < cnt; i++) {
+                sdn_encrypt(packets[i], enc);
+            }
+            break;
+        }
+
+        case OVS_ACTION_ATTR_SDN_DECRYPT:{
+            const struct ovs_action_sdn_decrypt *dec = nl_attr_get(a);
+
+            for (i = 0; i < cnt; i++) {
+                sdn_decrypt(packets[i], dec);
+            }
+            break;
+        }
 
         case OVS_ACTION_ATTR_SET:
             for (i = 0; i < cnt; i++) {

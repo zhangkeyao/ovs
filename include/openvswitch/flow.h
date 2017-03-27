@@ -127,6 +127,9 @@ struct flow {
     ovs_be16 tp_dst;            /* TCP/UDP/SCTP destination port/ICMP code. */
     ovs_be32 igmp_group_ip4;    /* IGMP group IPv4 address.
                                  * Keep last for BUILD_ASSERT_DECL below. */
+    ovs_be16 encrypt;           /* the packet is encrypted */
+    ovs_be16 decrypt;           /* the packet is decrypted */
+    ovs_be16 pad4[2];
 };
 BUILD_ASSERT_DECL(sizeof(struct flow) % sizeof(uint64_t) == 0);
 BUILD_ASSERT_DECL(sizeof(struct flow_tnl) % sizeof(uint64_t) == 0);

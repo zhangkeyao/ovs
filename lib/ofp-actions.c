@@ -313,6 +313,13 @@ enum ofp_raw_action_type {
 
     /* NX1.0+(255): void. */
     NXAST_RAW_DEBUG_RECIRC,
+
+/* edited by keyaozhang: encrypt and decrypt action. */
+	/* OF1.0+(80): void. */
+	OFPAT_RAW_SDN_ENCRYPT,
+
+	/* OF1.0+(81): void. */
+	OFPAT_RAW_SDN_DECRYPT,
 };
 
 /* OpenFlow actions are always a multiple of 8 bytes in length. */
@@ -414,6 +421,8 @@ ofpact_next_flattened(const struct ofpact *ofpact)
     case OFPACT_PUSH_MPLS:
     case OFPACT_POP_MPLS:
     case OFPACT_SET_TUNNEL:
+    case OFPACT_SDN_ENCRYPT:
+    case OFPACT_SDN_DECRYPT:
     case OFPACT_SET_QUEUE:
     case OFPACT_POP_QUEUE:
     case OFPACT_FIN_TIMEOUT:
@@ -3657,6 +3666,67 @@ format_SET_TUNNEL(const struct ofpact_tunnel *a, struct ds *s)
                   colors.end, a->tun_id);
 }
 
+/* edited by keyaozhang, SDN encrypt action. */
+
+static enum ofperr
+decode_OFPAT_RAW_SDN_ENCRYPT(struct ofpbuf *out)
+{
+    ofpact_put_SDN_ENCRYPT(out);
+    return 0;
+}
+
+static void
+encode_SDN_ENCRYPT(const struct ofpact_null *null OVS_UNUSED,
+                   enum ofp_version ofp_version OVS_UNUSED, struct ofpbuf *out)
+{
+    put_OFPAT_SDN_ENCRYPT(out);
+}
+
+static char * OVS_WARN_UNUSED_RESULT
+parse_SDN_ENCRYPT(const char *arg OVS_UNUSED, struct ofpbuf *ofpacts,
+                  enum ofputil_protocol *usable_protocols OVS_UNUSED)
+{
+    ofpact_put_SDN_ENCRYPT(ofpacts);
+    return NULL;
+}
+
+static void
+format_SDN_ENCRYPT(const struct ofpact_null *a OVS_UNUSED, struct ds *s)
+{
+	ds_put_cstr(s, "sdn_encrypt");
+}
+
+/* edited by keyaozhang, SDN decrypt action. */
+
+static enum ofperr
+decode_OFPAT_RAW_SDN_DECRYPT(struct ofpbuf *out)
+{
+    ofpact_put_SDN_DECRYPT(out);
+    return 0;
+}
+
+static void
+encode_SDN_DECRYPT(const struct ofpact_null *null OVS_UNUSED,
+                   enum ofp_version ofp_version OVS_UNUSED, struct ofpbuf *out)
+{
+    put_OFPAT_SDN_DECRYPT(out);
+}
+
+static char * OVS_WARN_UNUSED_RESULT
+parse_SDN_DECRYPT(const char *arg OVS_UNUSED, struct ofpbuf *ofpacts,
+                  enum ofputil_protocol *usable_protocols OVS_UNUSED)
+{
+    ofpact_put_SDN_DECRYPT(ofpacts);
+    return NULL;
+}
+
+static void
+format_SDN_DECRYPT(const struct ofpact_null *a OVS_UNUSED, struct ds *s)
+{
+	ds_put_cstr(s, "sdn_decrypt");
+}
+
+
 /* Set queue action. */
 
 static enum ofperr
@@ -6181,6 +6251,8 @@ ofpact_is_set_or_move_action(const struct ofpact *a)
     case OFPACT_POP_QUEUE:
     case OFPACT_PUSH_MPLS:
     case OFPACT_PUSH_VLAN:
+    case OFPACT_SDN_ENCRYPT:
+    case OFPACT_SDN_DECRYPT:
     case OFPACT_RESUBMIT:
     case OFPACT_SAMPLE:
     case OFPACT_STACK_POP:
@@ -6201,6 +6273,7 @@ static bool
 ofpact_is_allowed_in_actions_set(const struct ofpact *a)
 {
     switch (a->type) {
+    case OFPACT_SDN_DECRYPT:
     case OFPACT_DEC_MPLS_TTL:
     case OFPACT_DEC_TTL:
     case OFPACT_GROUP:
@@ -6228,6 +6301,7 @@ ofpact_is_allowed_in_actions_set(const struct ofpact *a)
     case OFPACT_SET_VLAN_PCP:
     case OFPACT_SET_VLAN_VID:
     case OFPACT_STRIP_VLAN:
+    case OFPACT_SDN_ENCRYPT:
         return true;
 
     /* In general these actions are excluded because they are not part of
@@ -6331,6 +6405,7 @@ ofpacts_execute_action_set(struct ofpbuf *action_list,
                            const struct ofpbuf *action_set)
 {
     /* The OpenFlow spec "Action Set" section specifies this order. */
+	ofpacts_copy_last(action_list, action_set, OFPACT_SDN_DECRYPT);
     ofpacts_copy_last(action_list, action_set, OFPACT_STRIP_VLAN);
     ofpacts_copy_last(action_list, action_set, OFPACT_POP_MPLS);
     ofpacts_copy_last(action_list, action_set, OFPACT_PUSH_MPLS);
@@ -6339,6 +6414,7 @@ ofpacts_execute_action_set(struct ofpbuf *action_list,
     ofpacts_copy_last(action_list, action_set, OFPACT_DEC_MPLS_TTL);
     ofpacts_copy_all(action_list, action_set, ofpact_is_set_or_move_action);
     ofpacts_copy_last(action_list, action_set, OFPACT_SET_QUEUE);
+    ofpacts_copy_last(action_list, action_set, OFPACT_SDN_ENCRYPT);
 
     /* If both OFPACT_GROUP and OFPACT_OUTPUT are present, OpenFlow says that
      * we should execute only OFPACT_GROUP.
@@ -6457,6 +6533,8 @@ ovs_instruction_type_from_ofpact_type(enum ofpact_type type)
     case OFPACT_PUSH_MPLS:
     case OFPACT_POP_MPLS:
     case OFPACT_SET_TUNNEL:
+    case OFPACT_SDN_ENCRYPT:
+    case OFPACT_SDN_DECRYPT:
     case OFPACT_SET_QUEUE:
     case OFPACT_POP_QUEUE:
     case OFPACT_FIN_TIMEOUT:
@@ -6988,6 +7066,8 @@ ofpact_check__(enum ofputil_protocol *usable_protocols, struct ofpact *a,
     case OFPACT_SET_QUEUE:
     case OFPACT_POP_QUEUE:
     case OFPACT_RESUBMIT:
+    case OFPACT_SDN_ENCRYPT:
+    case OFPACT_SDN_DECRYPT:
         return 0;
 
     case OFPACT_FIN_TIMEOUT:
@@ -7407,6 +7487,8 @@ get_ofpact_map(enum ofp_version version)
         { OFPACT_SET_L4_SRC_PORT, 9 },
         { OFPACT_SET_L4_DST_PORT, 10 },
         { OFPACT_ENQUEUE, 11 },
+		{ OFPACT_SDN_ENCRYPT, 80 },
+		{ OFPACT_SDN_DECRYPT, 81 },
         { 0, -1 },
     };
 
@@ -7437,6 +7519,8 @@ get_ofpact_map(enum ofp_version version)
         { OFPACT_GROUP, 22 },
         { OFPACT_SET_IP_TTL, 23 },
         { OFPACT_DEC_TTL, 24 },
+		{ OFPACT_SDN_ENCRYPT, 80 },
+		{ OFPACT_SDN_DECRYPT, 81 },
         { 0, -1 },
     };
 
@@ -7458,6 +7542,8 @@ get_ofpact_map(enum ofp_version version)
         { OFPACT_SET_FIELD, 25 },
         /* OF1.3+ OFPAT_PUSH_PBB (26) not supported. */
         /* OF1.3+ OFPAT_POP_PBB (27) not supported. */
+		{ OFPACT_SDN_ENCRYPT, 80 },
+		{ OFPACT_SDN_DECRYPT, 81 },
         { 0, -1 },
     };
 
@@ -7567,6 +7653,8 @@ ofpact_outputs_to_port(const struct ofpact *ofpact, ofp_port_t port)
     case OFPACT_SET_MPLS_TTL:
     case OFPACT_DEC_MPLS_TTL:
     case OFPACT_SET_TUNNEL:
+    case OFPACT_SDN_ENCRYPT:
+    case OFPACT_SDN_DECRYPT:
     case OFPACT_WRITE_METADATA:
     case OFPACT_SET_QUEUE:
     case OFPACT_POP_QUEUE:

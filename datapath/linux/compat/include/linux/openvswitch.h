@@ -660,6 +660,27 @@ struct ovs_action_hash {
 	uint32_t  hash_basis;
 };
 
+/*
+ * struct ovs_action_sdn_encrypt - %OVS_ACTION_SDN_ENCRYPT action argument
+ * @protocol: 4 layer protocol of dp-packet which influence the encrypted offset
+ *
+ * added by keyaozhang
+ */
+
+struct ovs_action_sdn_encrypt {
+	uint8_t protocol;
+};
+
+/*
+ * struct ovs_action_sdn_decrypt - %OVS_ACTION_SDN_DECRYPT action argument
+ * @protocol: 4 layer protocol of dp-packet which influence the decrypted offset
+ *
+ * added by keyaozhang
+ */
+struct ovs_action_sdn_decrypt {
+	uint8_t protocol;
+};
+
 #ifndef __KERNEL__
 #define TNL_PUSH_HEADER_SIZE 512
 
@@ -818,6 +839,8 @@ enum ovs_action_attr {
 #ifndef __KERNEL__
 	OVS_ACTION_ATTR_TUNNEL_PUSH,   /* struct ovs_action_push_tnl*/
 	OVS_ACTION_ATTR_TUNNEL_POP,    /* u32 port number. */
+	OVS_ACTION_ATTR_SDN_ENCRYPT,   /* struct ovs_action_sdn_encrypt. */
+	OVS_ACTION_ATTR_SDN_DECRYPT,   /* struct ovs_action_sdn_decrypt. */
 #endif
 	__OVS_ACTION_ATTR_MAX,	      /* Nothing past this will be accepted
 				       * from userspace. */

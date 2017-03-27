@@ -115,6 +115,8 @@ odp_action_len(uint16_t type)
     case OVS_ACTION_ATTR_POP_VLAN: return 0;
     case OVS_ACTION_ATTR_PUSH_MPLS: return sizeof(struct ovs_action_push_mpls);
     case OVS_ACTION_ATTR_POP_MPLS: return sizeof(ovs_be16);
+    case OVS_ACTION_ATTR_SDN_ENCRYPT: return sizeof(struct ovs_action_sdn_encrypt);
+    case OVS_ACTION_ATTR_SDN_DECRYPT: return sizeof(struct ovs_action_sdn_decrypt);
     case OVS_ACTION_ATTR_RECIRC: return sizeof(uint32_t);
     case OVS_ACTION_ATTR_HASH: return sizeof(struct ovs_action_hash);
     case OVS_ACTION_ATTR_SET: return ATTR_LEN_VARIABLE;
@@ -859,6 +861,8 @@ format_odp_action(struct ds *ds, const struct nlattr *a)
     case OVS_ACTION_ATTR_CT:
         format_odp_conntrack_action(ds, a);
         break;
+    case OVS_ACTION_ATTR_SDN_ENCRYPT:
+    case OVS_ACTION_ATTR_SDN_DECRYPT:
     case OVS_ACTION_ATTR_UNSPEC:
     case __OVS_ACTION_ATTR_MAX:
     default:
@@ -5930,6 +5934,38 @@ commit_set_pkt_mark_action(const struct flow *flow, struct flow *base_flow,
     }
 }
 
+static enum slow_path_reason
+commit_sdn_encrypt_action(const struct flow *flow, struct flow *base,
+						  struct ofpbuf *odp_actions)
+{
+	struct ovs_action_sdn_encrypt enc;
+	if (memcmp(&base->encrypt, &flow->encrypt, sizeof base->encrypt)){
+		if (flow->encrypt != 0) {
+			memcpy(&base->encrypt, &flow->encrypt, sizeof base->encrypt);
+			enc.protocol = flow->nw_proto;
+			nl_msg_put_unspec(odp_actions, OVS_ACTION_ATTR_SDN_ENCRYPT, &enc, sizeof enc);
+			return SLOW_ACTION;
+		}
+	}
+	return 0;
+}
+
+static enum slow_path_reason
+commit_sdn_decrypt_action(const struct flow *flow, struct flow *base,
+						  struct ofpbuf *odp_actions)
+{
+	struct ovs_action_sdn_decrypt dec;
+	if (memcmp(&base->decrypt, &flow->decrypt, sizeof base->decrypt)){
+		if (flow->decrypt != 0) {
+			memcpy(&base->decrypt, &flow->decrypt, sizeof base->decrypt);
+			dec.protocol = flow->nw_proto;
+			nl_msg_put_unspec(odp_actions, OVS_ACTION_ATTR_SDN_DECRYPT, &dec, sizeof dec);
+			return SLOW_ACTION;
+		}
+	}
+	return 0;
+}
+
 /* If any of the flow key data that ODP actions can modify are different in
  * 'base' and 'flow', appends ODP actions to 'odp_actions' that change the flow
  * key from 'base' into 'flow', and then changes 'base' the same way.  Does not
@@ -5944,7 +5980,8 @@ commit_odp_actions(const struct flow *flow, struct flow *base,
                    struct ofpbuf *odp_actions, struct flow_wildcards *wc,
                    bool use_masked)
 {
-    enum slow_path_reason slow1, slow2;
+    //enum slow_path_reason slow1, slow2;
+	enum slow_path_reason slow1, slow2, slow3, slow4;
 
     commit_set_ether_addr_action(flow, base, odp_actions, wc, use_masked);
     slow1 = commit_set_nw_action(flow, base, odp_actions, wc, use_masked);
@@ -5954,6 +5991,17 @@ commit_odp_actions(const struct flow *flow, struct flow *base,
     commit_vlan_action(flow->vlan_tci, base, odp_actions, wc);
     commit_set_priority_action(flow, base, odp_actions, wc, use_masked);
     commit_set_pkt_mark_action(flow, base, odp_actions, wc, use_masked);
+    slow3 = commit_sdn_encrypt_action(flow, base, odp_actions);
+    slow4 = commit_sdn_decrypt_action(flow, base, odp_actions);
 
-    return slow1 ? slow1 : slow2;
+    if (slow1)
+    	return slow1;
+    else if (slow2)
+    	return slow2;
+    else if (slow3)
+    	return slow3;
+    else
+    	return slow4;
+
+    //return slow1 ? slow1 : slow2;
 }

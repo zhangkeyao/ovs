@@ -822,6 +822,9 @@ miniflow_extract(struct dp_packet *packet, struct miniflow *dst)
                 miniflow_pad_to_64(mf, tp_dst);
             }
         }
+        miniflow_push_be16(mf, encrypt, 0);/*edited by keyaozhang*/
+        miniflow_push_be16(mf, decrypt, 0);/*edited by keyaozhang*/
+        miniflow_pad_to_64(mf, decrypt);
     }
  out:
     dst->map = mf.map;
@@ -1380,6 +1383,8 @@ void flow_wildcards_init_for_packet(struct flow_wildcards *wc,
         } else if (flow->nw_proto == IPPROTO_IGMP) {
             WC_MASK_FIELD(wc, igmp_group_ip4);
         }
+        WC_MASK_FIELD(wc, encrypt);
+        WC_MASK_FIELD(wc, decrypt);
     }
 }
 
@@ -1468,6 +1473,8 @@ flow_wc_map(const struct flow *flow, struct flowmap *map)
         FLOWMAP_SET(map, arp_sha);
         FLOWMAP_SET(map, arp_tha);
     }
+    FLOWMAP_SET(map, encrypt);
+    FLOWMAP_SET(map, decrypt);
 }
 
 /* Clear the metadata and register wildcard masks. They are not packet

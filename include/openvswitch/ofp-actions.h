@@ -93,6 +93,10 @@
     OFPACT(POP_QUEUE,       ofpact_null,        ofpact, "pop_queue")    \
     OFPACT(FIN_TIMEOUT,     ofpact_fin_timeout, ofpact, "fin_timeout")  \
                                                                         \
+    /* edited by keyaozhang*/	                                        \
+	OFPACT(SDN_ENCRYPT,      ofpact_null,       ofpact, "sdn_encrypt")  \
+    OFPACT(SDN_DECRYPT,      ofpact_null,       ofpact, "sdn_decrypt")  \
+                                                                        \
     /* Flow table interaction. */                                       \
     OFPACT(RESUBMIT,        ofpact_resubmit,    ofpact, "resubmit")     \
     OFPACT(LEARN,           ofpact_learn,       specs, "learn")         \

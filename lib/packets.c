@@ -1271,6 +1271,84 @@ packet_format_tcp_flags(struct ds *s, uint16_t tcp_flags)
     }
 }
 
+void
+sdn_encrypt(struct dp_packet *packet, const void *enc)
+{
+    uint8_t protocol = ((const struct ovs_action_sdn_encrypt *)enc)->protocol;
+    char *pass = "hello";
+    int l4_size = dp_packet_l4_size(packet);
+    char *pdata = NULL;
+    int over4_size = 0;
+    int pass_len = strlen(pass);
+    int i = 0;
+    if (protocol == IPPROTO_TCP){
+        if (OVS_LIKELY(l4_size >= TCP_HEADER_LEN)) {
+    	    struct tcp_header *tcp = dp_packet_l4(packet);
+    	    int tcp_len = TCP_OFFSET(tcp->tcp_ctl) * 4;
+
+    	    if (OVS_LIKELY(tcp_len >= TCP_HEADER_LEN && tcp_len <= l4_size)) {
+    		    pdata = (char *)tcp + tcp_len;
+    		    over4_size = l4_size - tcp_len;
+    	    }
+        }
+    }else if (protocol == IPPROTO_UDP){
+    	if (OVS_LIKELY(l4_size >= UDP_HEADER_LEN)) {
+    		pdata = (char *)dp_packet_l4(packet) + UDP_HEADER_LEN;
+    		over4_size = l4_size - UDP_HEADER_LEN;
+    	}
+    }else if (protocol == IPPROTO_ICMP){
+    	if (OVS_LIKELY(l4_size >= ICMP_HEADER_LEN)) {
+    	    pdata = (char *)dp_packet_l4(packet) + ICMP_HEADER_LEN;
+    	    over4_size = l4_size - ICMP_HEADER_LEN;
+    	}
+    }
+
+    if (pdata != NULL && over4_size > 0 ){
+        for (i = 0; i < over4_size; i++){
+            pdata[i] = pdata[i] ^ pass[i % pass_len];
+        }
+    }
+}
+
+void
+sdn_decrypt(struct dp_packet *packet, const void *dec)
+{
+    uint8_t protocol = ((const struct ovs_action_sdn_decrypt *)dec)->protocol;
+    char *pass = "hello";
+    int l4_size = dp_packet_l4_size(packet);
+    char *pdata = NULL;
+    int over4_size = 0;
+    int pass_len = strlen(pass);
+    int i = 0;
+    if (protocol == IPPROTO_TCP){
+        if (OVS_LIKELY(l4_size >= TCP_HEADER_LEN)) {
+    	    struct tcp_header *tcp = dp_packet_l4(packet);
+    	    int tcp_len = TCP_OFFSET(tcp->tcp_ctl) * 4;
+
+    	    if (OVS_LIKELY(tcp_len >= TCP_HEADER_LEN && tcp_len <= l4_size)) {
+    		    pdata = (char *)tcp + tcp_len;
+    		    over4_size = l4_size - tcp_len;
+    	    }
+        }
+    }else if (protocol == IPPROTO_UDP){
+    	if (OVS_LIKELY(l4_size >= UDP_HEADER_LEN)) {
+    		pdata = (char *)dp_packet_l4(packet) + UDP_HEADER_LEN;
+    		over4_size = l4_size - UDP_HEADER_LEN;
+    	}
+    }else if (protocol == IPPROTO_ICMP){
+    	if (OVS_LIKELY(l4_size >= ICMP_HEADER_LEN)) {
+    	    pdata = (char *)dp_packet_l4(packet) + ICMP_HEADER_LEN;
+    	    over4_size = l4_size - ICMP_HEADER_LEN;
+    	}
+    }
+
+    if (pdata != NULL && over4_size > 0 ){
+        for (i = 0; i < over4_size; i++){
+            pdata[i] = pdata[i] ^ pass[i % pass_len];
+        }
+    }
+}
+
 #define ARP_PACKET_SIZE  (2 + ETH_HEADER_LEN + VLAN_HEADER_LEN + \
                           ARP_ETH_HEADER_LEN)
 

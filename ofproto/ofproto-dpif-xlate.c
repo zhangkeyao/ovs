@@ -4439,6 +4439,8 @@ freeze_unroll_actions(const struct ofpact *a, const struct ofpact *end,
             break;
 
         case OFPACT_SET_TUNNEL:
+        case OFPACT_SDN_ENCRYPT:
+        case OFPACT_SDN_DECRYPT:
         case OFPACT_REG_MOVE:
         case OFPACT_SET_FIELD:
         case OFPACT_STACK_PUSH:
@@ -4680,6 +4682,8 @@ recirc_for_mpls(const struct ofpact *a, struct xlate_ctx *ctx)
     case OFPACT_SET_ETH_SRC:
     case OFPACT_SET_ETH_DST:
     case OFPACT_SET_TUNNEL:
+    case OFPACT_SDN_ENCRYPT:
+    case OFPACT_SDN_DECRYPT:
     case OFPACT_SET_QUEUE:
     /* If actions of a group require recirculation that can be detected
      * when translating them. */
@@ -4922,6 +4926,16 @@ do_xlate_actions(const struct ofpact *ofpacts, size_t ofpacts_len,
         case OFPACT_SET_TUNNEL:
             flow->tunnel.tun_id = htonll(ofpact_get_SET_TUNNEL(a)->tun_id);
             break;
+
+        case OFPACT_SDN_ENCRYPT:
+        	memset(&flow->encrypt, 0x1, sizeof flow->encrypt);
+        	memset(&wc->masks.encrypt, 0xff, sizeof wc->masks.encrypt);
+        	break;
+
+        case OFPACT_SDN_DECRYPT:
+        	memset(&flow->decrypt, 0x1, sizeof flow->decrypt);
+        	memset(&wc->masks.decrypt, 0xff, sizeof wc->masks.decrypt);
+        	break;
 
         case OFPACT_SET_QUEUE:
             memset(&wc->masks.skb_priority, 0xff,
