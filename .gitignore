@@ -30,6 +30,8 @@
 .libs
 .tmp_versions
 .gitattributes
+.project
+.cproject
 /Makefile
 /Makefile.in
 /aclocal.m4
