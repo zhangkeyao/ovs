@@ -44,6 +44,7 @@
 #include "openvswitch/vlog.h"
 
 #define DEFAULT_TTL 64
+#define IP_DF 0x4000                    /* dont fragment flag */
 static uint16_t tnl_udp_port_min = 32768;
 static uint16_t tnl_udp_port_max = 61000;
 VLOG_DEFINE_THIS_MODULE(odp_util);
