@@ -47,6 +47,7 @@
 #define IP_DF 0x4000                    /* dont fragment flag */
 static uint16_t tnl_udp_port_min = 32768;
 static uint16_t tnl_udp_port_max = 61000;
+static uint16_t ip_id;
 VLOG_DEFINE_THIS_MODULE(odp_util);
 
 /* The interface between userspace and kernel uses an "OVS_*" prefix.
@@ -5478,7 +5479,7 @@ commit_push_sdn_tunnel_action(const struct flow *flow, struct flow *base,
 			ip->ip_tos = flow->nw_tos;
 			ip->ip_ttl = DEFAULT_TTL;
 			ip->ip_proto = IPPROTO_UDP;
-			ip->ip_id = 0;
+			ip->ip_id = htons(ip_id + rand()%50);
 			ip->ip_frag_off = 0;
 			put_16aligned_be32(&ip->ip_src, flow->sdtunnel.src_ip);
 			put_16aligned_be32(&ip->ip_dst, flow->sdtunnel.dst_ip);
@@ -5571,7 +5572,7 @@ commit_push_gre_tunnel_action(const struct flow *flow, struct flow *base,
 			ip->ip_tos = flow->nw_tos;
 			ip->ip_ttl = DEFAULT_TTL;
 			ip->ip_proto = IPPROTO_GRE;
-			ip->ip_id = 0;
+			ip->ip_id = htons(ip_id + rand()%50);
 			ip->ip_frag_off = htons(IP_DF);
 			put_16aligned_be32(&ip->ip_src, flow->gretunnel.src_ip);
 			put_16aligned_be32(&ip->ip_dst, flow->gretunnel.dst_ip);
@@ -5631,7 +5632,7 @@ commit_push_vxlan_tunnel_action(const struct flow *flow, struct flow *base,
 			ip->ip_tos = flow->nw_tos;
 			ip->ip_ttl = DEFAULT_TTL;
 			ip->ip_proto = IPPROTO_UDP;
-			ip->ip_id = 0;
+			ip->ip_id = htons(ip_id + rand()%50);
 			ip->ip_frag_off = htons(IP_DF);
 			put_16aligned_be32(&ip->ip_src, flow->vxltunnel.src_ip);
 			put_16aligned_be32(&ip->ip_dst, flow->vxltunnel.dst_ip);
@@ -6185,7 +6186,8 @@ commit_odp_actions(const struct flow *flow, struct flow *base,
                    bool use_masked)
 {
 	enum slow_path_reason slow1, slow2, slow3, slow4, slow5, slow6;
-
+	srand(time(0));
+	ip_id = rand()%65536;
     commit_set_ether_addr_action(flow, base, odp_actions, wc, use_masked);
     slow1 = commit_set_nw_action(flow, base, odp_actions, wc, use_masked);
     commit_set_port_action(flow, base, odp_actions, wc, use_masked);
