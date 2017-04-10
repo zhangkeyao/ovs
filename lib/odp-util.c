@@ -5571,7 +5571,7 @@ commit_push_gre_tunnel_action(const struct flow *flow, struct flow *base,
 			ip->ip_ttl = DEFAULT_TTL;
 			ip->ip_proto = IPPROTO_GRE;
 			ip->ip_id = 0;
-			ip->ip_frag_off = 0;
+			ip->ip_frag_off = htons(IP_DF);
 			put_16aligned_be32(&ip->ip_src, flow->gretunnel.src_ip);
 			put_16aligned_be32(&ip->ip_dst, flow->gretunnel.dst_ip);
 
@@ -5631,7 +5631,7 @@ commit_push_vxlan_tunnel_action(const struct flow *flow, struct flow *base,
 			ip->ip_ttl = DEFAULT_TTL;
 			ip->ip_proto = IPPROTO_UDP;
 			ip->ip_id = 0;
-			ip->ip_frag_off = 0;
+			ip->ip_frag_off = htons(IP_DF);
 			put_16aligned_be32(&ip->ip_src, flow->vxltunnel.src_ip);
 			put_16aligned_be32(&ip->ip_dst, flow->vxltunnel.dst_ip);
 
