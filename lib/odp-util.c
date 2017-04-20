@@ -5450,6 +5450,20 @@ commit_odp_tunnel_action(const struct flow *flow, struct flow *base,
 
 /**************************edited by keyaozhang**************************/
 static enum slow_path_reason
+commit_sdn_tunnel_action(const struct flow *flow, struct flow *base,
+						  struct ofpbuf *odp_actions)
+{
+	static enum slow_path_reason slow1, slow2;
+	if (memcmp(&base->sdtunnel, &flow->sdtunnel, sizeof base->sdtunnel)) {
+		slow1 = commit_pop_sdn_tunnel_action(flow, base, odp_actions);
+		slow2 = commit_push_sdn_tunnel_action(flow, base, odp_actions);
+		memcpy(&base->sdtunnel, &flow->sdtunnel, sizeof base->sdtunnel);
+		return slow1 || slow2;
+	}
+	return 0;
+}
+
+static enum slow_path_reason
 commit_push_sdn_tunnel_action(const struct flow *flow, struct flow *base,
 						  struct ofpbuf *odp_actions)
 {
@@ -5461,7 +5475,7 @@ commit_push_sdn_tunnel_action(const struct flow *flow, struct flow *base,
 	struct sdn_tunnel_header *sdth;
 	if (memcmp(&base->sdtunnel, &flow->sdtunnel, sizeof base->sdtunnel)){
 		if (flow->sdtunnel.tun_type == SDN_TNL_TYPE) {
-			memcpy(&base->sdtunnel, &flow->sdtunnel, sizeof base->sdtunnel);
+			//memcpy(&base->sdtunnel, &flow->sdtunnel, sizeof base->sdtunnel);
 			sdt.src_ip = flow->sdtunnel.src_ip;
 			sdt.dst_ip = flow->sdtunnel.dst_ip;
 			sdt.type = flow->sdtunnel.tun_type;
@@ -5536,10 +5550,24 @@ commit_pop_sdn_tunnel_action(const struct flow *flow, struct flow *base,
     */
 	if (memcmp(&base->sdtunnel, &flow->sdtunnel, sizeof base->sdtunnel)){
 		if (base->sdtunnel.tun_type == SDN_TNL_TYPE) {
-			memcpy(&base->sdtunnel, &flow->sdtunnel, sizeof base->sdtunnel);
+			//memcpy(&base->sdtunnel, &flow->sdtunnel, sizeof base->sdtunnel);
 			nl_msg_put_flag(odp_actions, OVS_ACTION_ATTR_SDN_TUNNEL_POP);
 			return SLOW_ACTION;
 		}
+	}
+	return 0;
+}
+
+static enum slow_path_reason
+commit_gre_tunnel_action(const struct flow *flow, struct flow *base,
+						  struct ofpbuf *odp_actions)
+{
+	static enum slow_path_reason slow1, slow2;
+	if (memcmp(&base->gretunnel, &flow->gretunnel, sizeof base->gretunnel)){
+		slow1 = commit_pop_gre_tunnel_action(flow, base, odp_actions);
+		slow2 = commit_push_gre_tunnel_action(flow, base, odp_actions);
+		memcpy(&base->gretunnel, &flow->gretunnel, sizeof base->gretunnel);
+		return slow1 || slow2;
 	}
 	return 0;
 }
@@ -5555,7 +5583,7 @@ commit_push_gre_tunnel_action(const struct flow *flow, struct flow *base,
 	struct gre_base_hdr *greh;
 	if (memcmp(&base->gretunnel, &flow->gretunnel, sizeof base->gretunnel)){
 		if (flow->gretunnel.gre_flags == htons(GRE_TNL_FLAGS) && flow->gretunnel.gre_proto == htons(GRE_TNL_PROTOCOL)) {
-			memcpy(&base->gretunnel, &flow->gretunnel, sizeof base->gretunnel);
+			//memcpy(&base->gretunnel, &flow->gretunnel, sizeof base->gretunnel);
 			gret.src_ip = flow->gretunnel.src_ip;
 			gret.dst_ip = flow->gretunnel.dst_ip;
 			gret.header_len = ETH_HEADER_LEN + IP_HEADER_LEN + sizeof(struct gre_base_hdr);
@@ -5595,10 +5623,24 @@ commit_pop_gre_tunnel_action(const struct flow *flow, struct flow *base,
 {
 	if (memcmp(&base->gretunnel, &flow->gretunnel, sizeof base->gretunnel)){
 		if (base->gretunnel.gre_flags == htons(GRE_TNL_FLAGS) && base->gretunnel.gre_proto == htons(GRE_TNL_PROTOCOL)) {
-			memcpy(&base->gretunnel, &flow->gretunnel, sizeof base->gretunnel);
+			//memcpy(&base->gretunnel, &flow->gretunnel, sizeof base->gretunnel);
 			nl_msg_put_flag(odp_actions, OVS_ACTION_ATTR_GRE_TUNNEL_POP);
 			return SLOW_ACTION;
 		}
+	}
+	return 0;
+}
+
+static enum slow_path_reason
+commit_vxlan_tunnel_action(const struct flow *flow, struct flow *base,
+						    struct ofpbuf *odp_actions)
+{
+	static enum slow_path_reason slow1, slow2;
+	if (memcmp(&base->vxltunnel, &flow->vxltunnel, sizeof base->vxltunnel)){
+		slow1 = commit_pop_vxlan_tunnel_action(flow, base, odp_actions);
+		slow2 = commit_push_vxlan_tunnel_action(flow, base, odp_actions);
+		memcpy(&base->vxltunnel, &flow->vxltunnel, sizeof base->vxltunnel);
+		return slow1 || slow2;
 	}
 	return 0;
 }
@@ -5615,7 +5657,7 @@ commit_push_vxlan_tunnel_action(const struct flow *flow, struct flow *base,
 	struct vxlanhdr *vxlh;
 	if (memcmp(&base->vxltunnel, &flow->vxltunnel, sizeof base->vxltunnel)){
 		if (flow->vxltunnel.vx_flags == htonl(VXLAN_TNL_FLAGS)) {
-			memcpy(&base->vxltunnel, &flow->vxltunnel, sizeof base->vxltunnel);
+			//memcpy(&base->vxltunnel, &flow->vxltunnel, sizeof base->vxltunnel);
 			vxlt.src_ip = flow->vxltunnel.src_ip;
 			vxlt.dst_ip = flow->vxltunnel.dst_ip;
 			vxlt.header_len = ETH_HEADER_LEN + IP_HEADER_LEN + UDP_HEADER_LEN + sizeof(struct vxlanhdr);
@@ -5661,7 +5703,7 @@ commit_pop_vxlan_tunnel_action(const struct flow *flow, struct flow *base,
 {
 	if (memcmp(&base->vxltunnel, &flow->vxltunnel, sizeof base->vxltunnel)){
 		if (base->vxltunnel.vx_flags == htonl(VXLAN_TNL_FLAGS)) {
-			memcpy(&base->vxltunnel, &flow->vxltunnel, sizeof base->vxltunnel);
+			//memcpy(&base->vxltunnel, &flow->vxltunnel, sizeof base->vxltunnel);
 			nl_msg_put_flag(odp_actions, OVS_ACTION_ATTR_VXLAN_TUNNEL_POP);
 			return SLOW_ACTION;
 		}
@@ -6193,12 +6235,9 @@ commit_odp_actions(const struct flow *flow, struct flow *base,
     slow2 = commit_set_icmp_action(flow, base, odp_actions, wc);
     commit_mpls_action(flow, base, odp_actions);
     commit_vlan_action(flow->vlan_tci, base, odp_actions, wc);
-    commit_push_sdn_tunnel_action(flow, base, odp_actions);
-    commit_pop_sdn_tunnel_action(flow, base, odp_actions);
-    slow3 = commit_push_gre_tunnel_action(flow, base, odp_actions);
-    slow4 = commit_pop_gre_tunnel_action(flow, base, odp_actions);
-    slow5 = commit_push_vxlan_tunnel_action(flow, base, odp_actions);
-    slow6 = commit_pop_vxlan_tunnel_action(flow, base, odp_actions);
+    commit_sdn_tunnel_action(flow, base, odp_actions);
+    slow3 = commit_gre_tunnel_action(flow, base, odp_actions);
+    slow4 = commit_vxlan_tunnel_action(flow, base, odp_actions);
     commit_set_priority_action(flow, base, odp_actions, wc, use_masked);
     commit_set_pkt_mark_action(flow, base, odp_actions, wc, use_masked);
     /*
