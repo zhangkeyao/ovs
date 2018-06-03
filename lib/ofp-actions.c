@@ -4007,7 +4007,7 @@ parse_PUSH_VXLAN_TUNNEL(char *arg, struct ofpbuf *ofpacts,
 		}else if (!strcasecmp(key, "vx_vni")){
 			error = str_to_u32(value, &tunnel->vx_vni);
 			count[2] = 1;
-		}
+		}else
 			error = xasprintf("unknown PUSH_VXLAN_TUNNEL keyword %s", key);
 		if (error)
 			return error;
